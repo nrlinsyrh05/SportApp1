@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -65,13 +66,23 @@ public class BookingActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_booking);
 
-        // Initialize Firebase - FIXED: Only initialize once
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        mDatabase = database.getReference();
-        mAuth = FirebaseAuth.getInstance();
+        // ✅ STEP 1: Initialize Firebase
+        try {
+            FirebaseApp.initializeApp(this);
+            FirebaseDatabase database = FirebaseDatabase.getInstance();
+            database.setPersistenceEnabled(true);
+            mDatabase = database.getReference();
+            mAuth = FirebaseAuth.getInstance();
+            Log.d(TAG, "✅ Firebase initialized successfully!");
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Firebase initialization failed: " + e.getMessage());
+            Toast.makeText(this, "❌ Firebase Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
 
-        // Log Firebase URL for debugging
-        Log.d(TAG, "Firebase Database URL: " + mDatabase.toString());
+        // ✅ STEP 2: Log Firebase Database URL
+        if (mDatabase != null) {
+            Log.d(TAG, "✅ Firebase Database URL: " + mDatabase.toString());
+        }
 
         // Initialize location client
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -90,7 +101,7 @@ public class BookingActivity extends AppCompatActivity {
         // Set default PAX value
         etPax.setText("1");
 
-        // Test Firebase connection
+        // ✅ STEP 3: Test Firebase connection
         testFirebaseConnection();
     }
 
@@ -245,19 +256,46 @@ public class BookingActivity extends AppCompatActivity {
                 });
     }
 
+    private void testFirebaseConnection() {
+        if (mDatabase == null) {
+            Log.e(TAG, "❌ mDatabase is null!");
+            Toast.makeText(this, "❌ Firebase not initialized", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        DatabaseReference testRef = mDatabase.child(".info/connected");
+        testRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                Boolean connected = snapshot.getValue(Boolean.class);
+                if (connected != null && connected) {
+                    Log.d(TAG, "✅✅✅ CONNECTED to Firebase! ✅✅✅");
+                    Toast.makeText(BookingActivity.this, "✅ Firebase Connected!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Log.e(TAG, "❌❌❌ NOT CONNECTED to Firebase! ❌❌❌");
+                    Toast.makeText(BookingActivity.this, "❌ Firebase NOT Connected! Check google-services.json", Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError error) {
+                Log.e(TAG, "Firebase connection error: " + error.getMessage());
+                Toast.makeText(BookingActivity.this, "❌ Firebase Error: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     private void createBooking() {
+        // Check if Firebase is connected
+        if (mDatabase == null) {
+            Toast.makeText(this, "❌ Firebase not initialized", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         // Get all input values
         String date = tvDate.getText().toString().replace("📅 ", "").trim();
         String time = tvTime.getText().toString().replace("🕐 ", "").trim();
         String paxStr = etPax.getText().toString().trim();
-
-        // Log for debugging
-        Log.d(TAG, "=== CREATE BOOKING ===");
-        Log.d(TAG, "Date: '" + date + "'");
-        Log.d(TAG, "Time: '" + time + "'");
-        Log.d(TAG, "PAX: '" + paxStr + "'");
-        Log.d(TAG, "Venue: '" + venueName + "'");
-        Log.d(TAG, "Address: '" + venueAddress + "'");
 
         // VALIDATION
         if (venueName.isEmpty() || venueName.equals("No venue selected")) {
@@ -279,19 +317,16 @@ public class BookingActivity extends AppCompatActivity {
         if (paxStr.isEmpty()) {
             pax = 1;
             etPax.setText("1");
-            Toast.makeText(this, "ℹ️ PAX set to 1 (default)", Toast.LENGTH_SHORT).show();
         } else {
             try {
                 pax = Integer.parseInt(paxStr);
                 if (pax <= 0) {
                     pax = 1;
                     etPax.setText("1");
-                    Toast.makeText(this, "ℹ️ PAX set to 1", Toast.LENGTH_SHORT).show();
                 }
             } catch (NumberFormatException e) {
                 pax = 1;
                 etPax.setText("1");
-                Toast.makeText(this, "ℹ️ PAX set to 1", Toast.LENGTH_SHORT).show();
             }
         }
 
@@ -315,7 +350,6 @@ public class BookingActivity extends AppCompatActivity {
 
         if (bookingId == null) {
             Toast.makeText(this, "❌ Failed to create booking ID", Toast.LENGTH_LONG).show();
-            Log.e(TAG, "bookingId is null");
             return;
         }
 
@@ -340,15 +374,11 @@ public class BookingActivity extends AppCompatActivity {
         booking.setUserEmail(currentUser.getEmail() != null ?
                 currentUser.getEmail() : "");
 
-        Log.d(TAG, "Booking object created");
-
         final String finalVenueName = venueName;
-        final DatabaseReference bookingRef = mDatabase.child("bookings").child(bookingId);
 
         // Save to Firebase
-        bookingRef.setValue(booking)
+        mDatabase.child("bookings").child(bookingId).setValue(booking)
                 .addOnCompleteListener(task -> {
-                    Log.d(TAG, "onComplete called, success: " + task.isSuccessful());
                     if (task.isSuccessful()) {
                         Log.d(TAG, "✅ Booking saved successfully!");
                         Toast.makeText(BookingActivity.this,
@@ -359,33 +389,10 @@ public class BookingActivity extends AppCompatActivity {
                         Exception e = task.getException();
                         Log.e(TAG, "❌ Booking failed: " + (e != null ? e.getMessage() : "Unknown error"));
                         Toast.makeText(BookingActivity.this,
-                                "❌ Failed: " + (e != null ? e.getMessage() : "Check internet connection"),
+                                "❌ Failed: " + (e != null ? e.getMessage() : "Check internet"),
                                 Toast.LENGTH_LONG).show();
                     }
                 });
-    }
-
-    private void testFirebaseConnection() {
-        DatabaseReference testRef = FirebaseDatabase.getInstance().getReference(".info/connected");
-        testRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot snapshot) {
-                Boolean connected = snapshot.getValue(Boolean.class);
-                if (connected != null && connected) {
-                    Log.d(TAG, "✅ CONNECTED to Firebase!");
-                    Toast.makeText(BookingActivity.this, "✅ Firebase Connected!", Toast.LENGTH_SHORT).show();
-                } else {
-                    Log.e(TAG, "❌ NOT CONNECTED to Firebase!");
-                    Toast.makeText(BookingActivity.this, "❌ Firebase NOT Connected! Check internet.", Toast.LENGTH_LONG).show();
-                }
-            }
-
-            @Override
-            public void onCancelled(DatabaseError error) {
-                Log.e(TAG, "Firebase connection error: " + error.getMessage());
-                Toast.makeText(BookingActivity.this, "❌ Firebase Error: " + error.getMessage(), Toast.LENGTH_LONG).show();
-            }
-        });
     }
 
     @Override
