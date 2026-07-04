@@ -1,10 +1,15 @@
 package com.uitm.smartsportvenuefinder;
 
 import android.Manifest;
+import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -16,56 +21,57 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.android.libraries.places.api.Places;
-import com.google.android.libraries.places.api.model.Place;
-import com.google.android.libraries.places.widget.Autocomplete;
-import com.google.android.libraries.places.widget.AutocompleteActivity;
-import com.google.android.libraries.places.widget.model.AutocompleteActivityMode;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.util.Calendar;
 import java.util.Locale;
 
 public class BookingActivity extends AppCompatActivity {
 
     // UI Components
-    private EditText etDate, etTime, etPax;
-    private TextView tvVenueName, tvVenueAddress, tvLocation;
-    private Button btnSearchLocation, btnGetGps, btnConfirmBooking, btnCancel;
-    private View progressOverlay;
+    private EditText etPax;
+    private TextView tvVenueName, tvVenueAddress, tvLocation, tvDate, tvTime;
+    private Button btnSearchVenue, btnGetGps, btnConfirmBooking, btnCancel, btnPickDate, btnPickTime;
 
     // Firebase
     private DatabaseReference mDatabase;
+    private FirebaseAuth mAuth;
 
     // Location
     private FusedLocationProviderClient fusedLocationClient;
     private double latitude = 0, longitude = 0;
     private String venueName = "", venueAddress = "", placeId = "";
 
+    // Date & Time
+    private Calendar selectedDate = Calendar.getInstance();
+    private Calendar selectedTime = Calendar.getInstance();
+    private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+    private SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+
     // Constants
     private static final int LOCATION_PERMISSION_REQUEST = 1001;
-    private static final int PLACE_AUTOCOMPLETE_REQUEST = 1002;
-    private static final String API_KEY = "AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI";
+    private static final int VENUE_SEARCH_REQUEST = 1002;
+    private static final String TAG = "BookingActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_booking);
 
-        // Initialize Firebase
-        mDatabase = FirebaseDatabase.getInstance().getReference();
+        // Initialize Firebase - FIXED: Only initialize once
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        mDatabase = database.getReference();
+        mAuth = FirebaseAuth.getInstance();
 
-        // Initialize Places
-        if (!Places.isInitialized()) {
-            Places.initialize(getApplicationContext(), API_KEY);
-        }
+        // Log Firebase URL for debugging
+        Log.d(TAG, "Firebase Database URL: " + mDatabase.toString());
 
         // Initialize location client
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -74,52 +80,141 @@ public class BookingActivity extends AppCompatActivity {
         initViews();
         setupListeners();
 
-        // Set current date as default
-        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
-        etDate.setText(dateFormat.format(new Date()));
+        // Set current date and time as default
+        updateDateDisplay();
+        updateTimeDisplay();
 
-        // Set default time
-        SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.getDefault());
-        etTime.setText(timeFormat.format(new Date()));
+        // Check if coming from VenueSearch with data (AUTO-FILL)
+        handleIncomingVenueData();
+
+        // Set default PAX value
+        etPax.setText("1");
+
+        // Test Firebase connection
+        testFirebaseConnection();
     }
 
     private void initViews() {
-        etDate = findViewById(R.id.etDate);
-        etTime = findViewById(R.id.etTime);
-        etPax = findViewById(R.id.etPax);
         tvVenueName = findViewById(R.id.tvVenueName);
         tvVenueAddress = findViewById(R.id.tvVenueAddress);
         tvLocation = findViewById(R.id.tvLocation);
-        btnSearchLocation = findViewById(R.id.btnSearchLocation);
+        tvDate = findViewById(R.id.tvDate);
+        tvTime = findViewById(R.id.tvTime);
+        etPax = findViewById(R.id.etPax);
+        btnSearchVenue = findViewById(R.id.btnSearchVenue);
         btnGetGps = findViewById(R.id.btnGetGps);
+        btnPickDate = findViewById(R.id.btnPickDate);
+        btnPickTime = findViewById(R.id.btnPickTime);
         btnConfirmBooking = findViewById(R.id.btnConfirmBooking);
         btnCancel = findViewById(R.id.btnCancel);
-        progressOverlay = findViewById(R.id.progressOverlay);
 
-        // Set initial text
         tvVenueName.setText("No venue selected");
         tvVenueAddress.setText("");
-        tvLocation.setText("📍 Tap 'Search' or 'GPS' to select location");
+        tvLocation.setText("📍 Tap 'Search' to find a venue or 'GPS' for current location");
     }
 
     private void setupListeners() {
-        btnSearchLocation.setOnClickListener(v -> openPlaceAutocomplete());
+        btnSearchVenue.setOnClickListener(v -> {
+            Intent intent = new Intent(BookingActivity.this, VenueSearchActivity.class);
+            startActivityForResult(intent, VENUE_SEARCH_REQUEST);
+        });
+
         btnGetGps.setOnClickListener(v -> getCurrentLocation());
-        btnConfirmBooking.setOnClickListener(v -> createBooking());
+        btnPickDate.setOnClickListener(v -> showDatePickerDialog());
+        btnPickTime.setOnClickListener(v -> showTimePickerDialog());
+
+        btnConfirmBooking.setOnClickListener(v -> {
+            Toast.makeText(BookingActivity.this, "📌 Booking Started!", Toast.LENGTH_SHORT).show();
+            createBooking();
+        });
+
         btnCancel.setOnClickListener(v -> finish());
+
+        tvDate.setOnClickListener(v -> showDatePickerDialog());
+        tvTime.setOnClickListener(v -> showTimePickerDialog());
     }
 
-    private void openPlaceAutocomplete() {
-        List<Place.Field> fields = Arrays.asList(
-                Place.Field.ID,
-                Place.Field.NAME,
-                Place.Field.ADDRESS,
-                Place.Field.LAT_LNG
+    private void showDatePickerDialog() {
+        DatePickerDialog datePicker = new DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> {
+                    selectedDate.set(year, month, dayOfMonth);
+                    updateDateDisplay();
+                },
+                selectedDate.get(Calendar.YEAR),
+                selectedDate.get(Calendar.MONTH),
+                selectedDate.get(Calendar.DAY_OF_MONTH)
         );
+        datePicker.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+        datePicker.show();
+    }
 
-        Intent intent = new Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
-                .build(this);
-        startActivityForResult(intent, PLACE_AUTOCOMPLETE_REQUEST);
+    private void showTimePickerDialog() {
+        TimePickerDialog timePicker = new TimePickerDialog(
+                this,
+                (view, hourOfDay, minute) -> {
+                    selectedTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                    selectedTime.set(Calendar.MINUTE, minute);
+                    updateTimeDisplay();
+                },
+                selectedTime.get(Calendar.HOUR_OF_DAY),
+                selectedTime.get(Calendar.MINUTE),
+                false
+        );
+        timePicker.show();
+    }
+
+    private void updateDateDisplay() {
+        tvDate.setText("📅 " + dateFormat.format(selectedDate.getTime()));
+    }
+
+    private void updateTimeDisplay() {
+        tvTime.setText("🕐 " + timeFormat.format(selectedTime.getTime()));
+    }
+
+    private void handleIncomingVenueData() {
+        if (getIntent().hasExtra("venueName")) {
+            venueName = getIntent().getStringExtra("venueName");
+            venueAddress = getIntent().getStringExtra("venueAddress");
+            placeId = getIntent().getStringExtra("venueId");
+            latitude = getIntent().getDoubleExtra("latitude", 0);
+            longitude = getIntent().getDoubleExtra("longitude", 0);
+
+            tvVenueName.setText(venueName);
+            tvVenueAddress.setText(venueAddress);
+
+            if (latitude != 0 && longitude != 0) {
+                tvLocation.setText("📍 " + String.format("%.6f", latitude) + ", " + String.format("%.6f", longitude));
+            } else {
+                tvLocation.setText("📍 " + venueAddress);
+            }
+
+            Toast.makeText(this, "✅ Venue loaded: " + venueName, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == VENUE_SEARCH_REQUEST && resultCode == RESULT_OK && data != null) {
+            venueName = data.getStringExtra("venueName");
+            venueAddress = data.getStringExtra("venueAddress");
+            placeId = data.getStringExtra("venueId");
+            latitude = data.getDoubleExtra("latitude", 0);
+            longitude = data.getDoubleExtra("longitude", 0);
+
+            tvVenueName.setText(venueName);
+            tvVenueAddress.setText(venueAddress);
+
+            if (latitude != 0 && longitude != 0) {
+                tvLocation.setText("📍 " + String.format("%.6f", latitude) + ", " + String.format("%.6f", longitude));
+            } else {
+                tvLocation.setText("📍 " + venueAddress);
+            }
+
+            Toast.makeText(this, "✅ Venue selected: " + venueName, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void getCurrentLocation() {
@@ -130,117 +225,114 @@ public class BookingActivity extends AppCompatActivity {
             return;
         }
 
-        progressOverlay.setVisibility(View.VISIBLE);
-
         fusedLocationClient.getLastLocation()
-                .addOnCompleteListener(this, new OnCompleteListener<Location>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Location> task) {
-                        progressOverlay.setVisibility(View.GONE);
+                .addOnCompleteListener(this, task -> {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        Location location = task.getResult();
+                        latitude = location.getLatitude();
+                        longitude = location.getLongitude();
 
-                        if (task.isSuccessful() && task.getResult() != null) {
-                            Location location = task.getResult();
-                            latitude = location.getLatitude();
-                            longitude = location.getLongitude();
+                        venueName = "Current Location";
+                        venueAddress = String.format("%.6f, %.6f", latitude, longitude);
+                        tvVenueName.setText(venueName);
+                        tvVenueAddress.setText(venueAddress);
+                        tvLocation.setText("📍 GPS: " + venueAddress);
 
-                            venueName = "Current Location";
-                            venueAddress = String.format("%.6f, %.6f", latitude, longitude);
-                            tvVenueName.setText(venueName);
-                            tvVenueAddress.setText(venueAddress);
-                            tvLocation.setText("📍 GPS: " + venueAddress);
-
-                            Toast.makeText(BookingActivity.this, "✅ GPS location set", Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(BookingActivity.this, "❌ Unable to get location", Toast.LENGTH_SHORT).show();
-                        }
+                        Toast.makeText(BookingActivity.this, "✅ GPS location set", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(BookingActivity.this, "❌ Unable to get location", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == PLACE_AUTOCOMPLETE_REQUEST) {
-            if (resultCode == RESULT_OK && data != null) {
-                Place place = Autocomplete.getPlaceFromIntent(data);
-                if (place != null) {
-                    venueName = place.getName() != null ? place.getName() : "Unknown Venue";
-                    venueAddress = place.getAddress() != null ? place.getAddress() : "";
-                    placeId = place.getId() != null ? place.getId() : "";
-
-                    if (place.getLatLng() != null) {
-                        latitude = place.getLatLng().latitude;
-                        longitude = place.getLatLng().longitude;
-                    }
-
-                    tvVenueName.setText(venueName);
-                    tvVenueAddress.setText(venueAddress);
-                    tvLocation.setText("📍 " + venueAddress);
-
-                    Toast.makeText(this, "✅ " + venueName + " selected", Toast.LENGTH_SHORT).show();
-                }
-            } else if (resultCode == AutocompleteActivity.RESULT_ERROR) {
-                Toast.makeText(this, "❌ Place selection failed", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
     private void createBooking() {
-        // Get input values
-        String date = etDate.getText().toString().trim();
-        String time = etTime.getText().toString().trim();
+        // Get all input values
+        String date = tvDate.getText().toString().replace("📅 ", "").trim();
+        String time = tvTime.getText().toString().replace("🕐 ", "").trim();
         String paxStr = etPax.getText().toString().trim();
 
-        // Validate
+        // Log for debugging
+        Log.d(TAG, "=== CREATE BOOKING ===");
+        Log.d(TAG, "Date: '" + date + "'");
+        Log.d(TAG, "Time: '" + time + "'");
+        Log.d(TAG, "PAX: '" + paxStr + "'");
+        Log.d(TAG, "Venue: '" + venueName + "'");
+        Log.d(TAG, "Address: '" + venueAddress + "'");
+
+        // VALIDATION
         if (venueName.isEmpty() || venueName.equals("No venue selected")) {
-            Toast.makeText(this, "⚠️ Please select a venue first", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "⚠️ Please select a venue", Toast.LENGTH_LONG).show();
             return;
         }
 
         if (date.isEmpty()) {
-            etDate.setError("Required");
+            Toast.makeText(this, "⚠️ Please select a date", Toast.LENGTH_LONG).show();
             return;
         }
+
         if (time.isEmpty()) {
-            etTime.setError("Required");
-            return;
-        }
-        if (paxStr.isEmpty()) {
-            etPax.setError("Required");
+            Toast.makeText(this, "⚠️ Please select a time", Toast.LENGTH_LONG).show();
             return;
         }
 
         int pax;
-        try {
-            pax = Integer.parseInt(paxStr);
-            if (pax <= 0) {
-                etPax.setError("Must be at least 1");
-                return;
+        if (paxStr.isEmpty()) {
+            pax = 1;
+            etPax.setText("1");
+            Toast.makeText(this, "ℹ️ PAX set to 1 (default)", Toast.LENGTH_SHORT).show();
+        } else {
+            try {
+                pax = Integer.parseInt(paxStr);
+                if (pax <= 0) {
+                    pax = 1;
+                    etPax.setText("1");
+                    Toast.makeText(this, "ℹ️ PAX set to 1", Toast.LENGTH_SHORT).show();
+                }
+            } catch (NumberFormatException e) {
+                pax = 1;
+                etPax.setText("1");
+                Toast.makeText(this, "ℹ️ PAX set to 1", Toast.LENGTH_SHORT).show();
             }
-        } catch (NumberFormatException e) {
-            etPax.setError("Invalid number");
-            return;
         }
 
-        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        final int finalPax = pax;
+
+        // Check authentication
+        FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser == null) {
-            Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "⚠️ Please login first", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(this, LoginActivity.class));
             finish();
             return;
         }
 
-        // Show loading
-        progressOverlay.setVisibility(View.VISIBLE);
-        btnConfirmBooking.setEnabled(false);
+        Log.d(TAG, "User authenticated: " + currentUser.getEmail());
+        Toast.makeText(this, "📤 Saving booking...", Toast.LENGTH_SHORT).show();
 
-        // Create booking
+        // Create booking ID
         String userId = currentUser.getUid();
         String bookingId = mDatabase.child("bookings").push().getKey();
 
-        Booking booking = new Booking(bookingId, userId, placeId, venueName,
-                date, time, "Pending", pax);
+        if (bookingId == null) {
+            Toast.makeText(this, "❌ Failed to create booking ID", Toast.LENGTH_LONG).show();
+            Log.e(TAG, "bookingId is null");
+            return;
+        }
+
+        Log.d(TAG, "Booking ID: " + bookingId);
+
+        // Create booking object
+        Booking booking = new Booking();
+        booking.setBookingId(bookingId);
+        booking.setUserId(userId);
+        booking.setVenueId(placeId);
+        booking.setVenueName(venueName);
         booking.setVenueAddress(venueAddress);
+        booking.setBookingDate(date);
+        booking.setBookingTime(time);
+        booking.setPax(finalPax);
+        booking.setStatus("Pending");
+        booking.setTimestamp(System.currentTimeMillis());
         booking.setLatitude(latitude);
         booking.setLongitude(longitude);
         booking.setUserName(currentUser.getDisplayName() != null ?
@@ -248,23 +340,52 @@ public class BookingActivity extends AppCompatActivity {
         booking.setUserEmail(currentUser.getEmail() != null ?
                 currentUser.getEmail() : "");
 
-        // Save to Firebase
-        mDatabase.child("bookings").child(bookingId).setValue(booking)
-                .addOnCompleteListener(task -> {
-                    progressOverlay.setVisibility(View.GONE);
-                    btnConfirmBooking.setEnabled(true);
+        Log.d(TAG, "Booking object created");
 
+        final String finalVenueName = venueName;
+        final DatabaseReference bookingRef = mDatabase.child("bookings").child(bookingId);
+
+        // Save to Firebase
+        bookingRef.setValue(booking)
+                .addOnCompleteListener(task -> {
+                    Log.d(TAG, "onComplete called, success: " + task.isSuccessful());
                     if (task.isSuccessful()) {
+                        Log.d(TAG, "✅ Booking saved successfully!");
                         Toast.makeText(BookingActivity.this,
-                                "✅ Booking Confirmed!\n📍 " + venueName + "\n👤 " + pax + " people",
+                                "✅✅✅ BOOKING CONFIRMED! ✅✅✅\n📍 " + finalVenueName + "\n👤 " + finalPax + " people",
                                 Toast.LENGTH_LONG).show();
                         finish();
                     } else {
+                        Exception e = task.getException();
+                        Log.e(TAG, "❌ Booking failed: " + (e != null ? e.getMessage() : "Unknown error"));
                         Toast.makeText(BookingActivity.this,
-                                "❌ Failed: " + task.getException().getMessage(),
-                                Toast.LENGTH_SHORT).show();
+                                "❌ Failed: " + (e != null ? e.getMessage() : "Check internet connection"),
+                                Toast.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    private void testFirebaseConnection() {
+        DatabaseReference testRef = FirebaseDatabase.getInstance().getReference(".info/connected");
+        testRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                Boolean connected = snapshot.getValue(Boolean.class);
+                if (connected != null && connected) {
+                    Log.d(TAG, "✅ CONNECTED to Firebase!");
+                    Toast.makeText(BookingActivity.this, "✅ Firebase Connected!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Log.e(TAG, "❌ NOT CONNECTED to Firebase!");
+                    Toast.makeText(BookingActivity.this, "❌ Firebase NOT Connected! Check internet.", Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError error) {
+                Log.e(TAG, "Firebase connection error: " + error.getMessage());
+                Toast.makeText(BookingActivity.this, "❌ Firebase Error: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     @Override

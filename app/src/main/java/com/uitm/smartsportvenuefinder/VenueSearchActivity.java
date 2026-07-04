@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -15,6 +17,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -23,7 +26,9 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.libraries.places.api.Places;
@@ -57,15 +62,16 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
     // Location
     private FusedLocationProviderClient fusedLocationClient;
     private LatLng currentLatLng;
+    private boolean isLocationPermissionGranted = false;
 
     // Data
     private List<Place> searchResults;
     private VenueSearchAdapter adapter;
     private Place selectedPlace;
-    private Marker selectedMarker;
 
     // Constants
     private static final int LOCATION_PERMISSION_REQUEST = 1001;
+    private static final String API_KEY = "AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,7 +80,7 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
 
         // Initialize Google Places
         if (!Places.isInitialized()) {
-            Places.initialize(getApplicationContext(), "AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI");
+            Places.initialize(getApplicationContext(), API_KEY);
         }
         placesClient = Places.createClient(this);
 
@@ -92,8 +98,8 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
                 .findFragmentById(R.id.map_search);
         mapFragment.getMapAsync(this);
 
-        // Get current location
-        getCurrentLocation();
+        // Check location permission and get location
+        checkLocationPermission();
     }
 
     private void initViews() {
@@ -112,6 +118,9 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
             selectedPlace = venue;
             showSelectedVenue(venue);
             moveMapToVenue(venue);
+            if (venue.getLatLng() != null) {
+                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(venue.getLatLng(), 17f));
+            }
         });
 
         rvSearchResults.setLayoutManager(new LinearLayoutManager(this));
@@ -120,11 +129,27 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
     }
 
     private void setupListeners() {
-        btnSearch.setOnClickListener(v -> searchVenues());
+        btnSearch.setOnClickListener(v -> {
+            hideKeyboard();
+            searchVenues();
+        });
+
+        etSearchVenue.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                hideKeyboard();
+                searchVenues();
+                return true;
+            }
+            return false;
+        });
 
         btnUseCurrentLocation.setOnClickListener(v -> {
-            getCurrentLocation();
-            searchNearbyVenues();
+            if (currentLatLng != null) {
+                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+                searchNearbyVenues();
+            } else {
+                getCurrentLocation();
+            }
         });
 
         btnBookSelected.setOnClickListener(v -> {
@@ -141,35 +166,74 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
             adapter.notifyDataSetChanged();
             rvSearchResults.setVisibility(View.GONE);
             tvNoResults.setVisibility(View.GONE);
+            ivClearSearch.setVisibility(View.GONE);
+            if (googleMap != null) {
+                googleMap.clear();
+                if (currentLatLng != null) {
+                    googleMap.addMarker(new MarkerOptions()
+                            .position(currentLatLng)
+                            .title("📍 Your Location")
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                }
+            }
+            hideKeyboard();
         });
 
-        etSearchVenue.setOnEditorActionListener((v, actionId, event) -> {
-            searchVenues();
-            return true;
+        etSearchVenue.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                ivClearSearch.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
         });
     }
 
-    private void getCurrentLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
+    private void checkLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            isLocationPermissionGranted = true;
+            getCurrentLocation();
+        } else {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST);
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION},
+                    LOCATION_PERMISSION_REQUEST);
+        }
+    }
+
+    private void getCurrentLocation() {
+        if (!isLocationPermissionGranted) {
+            checkLocationPermission();
             return;
         }
 
+        progressBar.setVisibility(View.VISIBLE);
+
         fusedLocationClient.getLastLocation()
                 .addOnCompleteListener(this, task -> {
+                    progressBar.setVisibility(View.GONE);
+
                     if (task.isSuccessful() && task.getResult() != null) {
                         Location location = task.getResult();
                         currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
 
                         if (googleMap != null) {
-                            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+                            googleMap.addMarker(new MarkerOptions()
+                                    .position(currentLatLng)
+                                    .title("📍 Your Location")
+                                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+                            searchNearbyVenues();
                         }
 
-                        Toast.makeText(this, "📍 Location updated", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "📍 Location found", Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(this, "Unable to get location", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "❌ Unable to get location. Try GPS button.", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -182,15 +246,17 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
             return;
         }
 
+        hideKeyboard();
         progressBar.setVisibility(View.VISIBLE);
         rvSearchResults.setVisibility(View.GONE);
         tvNoResults.setVisibility(View.GONE);
+        searchResults.clear();
 
-        // Use Autocomplete for search
+        // Use FindAutocompletePredictions for search
         AutocompleteSessionToken token = AutocompleteSessionToken.newInstance();
 
         FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
-                .setQuery(query + " sports venue")
+                .setQuery(query)
                 .setTypeFilter(TypeFilter.ESTABLISHMENT)
                 .setSessionToken(token)
                 .build();
@@ -203,15 +269,22 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
                             !response.getAutocompletePredictions().isEmpty()) {
 
                         // Fetch details for each prediction
-                        searchResults.clear();
                         for (com.google.android.libraries.places.api.model.AutocompletePrediction prediction :
                                 response.getAutocompletePredictions()) {
                             fetchPlaceDetails(prediction.getPlaceId());
                         }
                     } else {
-                        rvSearchResults.setVisibility(View.GONE);
                         tvNoResults.setVisibility(View.VISIBLE);
                         tvNoResults.setText("No venues found. Try a different search.");
+                        if (googleMap != null) {
+                            googleMap.clear();
+                            if (currentLatLng != null) {
+                                googleMap.addMarker(new MarkerOptions()
+                                        .position(currentLatLng)
+                                        .title("📍 Your Location")
+                                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                            }
+                        }
                     }
                 })
                 .addOnFailureListener(exception -> {
@@ -227,7 +300,8 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
                 Place.Field.NAME,
                 Place.Field.ADDRESS,
                 Place.Field.LAT_LNG,
-                Place.Field.TYPES
+                Place.Field.TYPES,
+                Place.Field.RATING
         );
 
         FetchPlaceRequest request = FetchPlaceRequest.builder(placeId, fields).build();
@@ -236,35 +310,17 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
                 .addOnSuccessListener(response -> {
                     Place place = response.getPlace();
                     if (place != null && place.getLatLng() != null) {
-                        // Check if it's a sports venue
-                        boolean isSportsVenue = false;
-                        if (place.getTypes() != null) {
-                            for (com.google.android.libraries.places.api.model.Place.Type type : place.getTypes()) {
-                                if (type.toString().contains("SPORTS") ||
-                                        type.toString().contains("STADIUM") ||
-                                        type.toString().contains("GYM")) {
-                                    isSportsVenue = true;
-                                    break;
-                                }
-                            }
-                        }
+                        // Check if it's a sports venue or relevant
+                        boolean isRelevant = true;
+                        // You can add filtering logic here if needed
 
-                        // If not clearly a sports venue, still add it if it has "sports" in name
-                        if (!isSportsVenue && place.getName() != null) {
-                            String name = place.getName().toLowerCase();
-                            if (name.contains("sport") || name.contains("stadium") ||
-                                    name.contains("court") || name.contains("field") ||
-                                    name.contains("gym") || name.contains("arena")) {
-                                isSportsVenue = true;
-                            }
-                        }
-
-                        if (isSportsVenue) {
+                        if (isRelevant) {
                             searchResults.add(place);
                             adapter.notifyDataSetChanged();
                             showVenuesOnMap(searchResults);
                             rvSearchResults.setVisibility(View.VISIBLE);
                             tvNoResults.setVisibility(View.GONE);
+                            zoomToFitMarkers(searchResults);
                         }
                     }
                 })
@@ -276,18 +332,20 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
     private void searchNearbyVenues() {
         if (currentLatLng == null) {
             Toast.makeText(this, "Please get your location first", Toast.LENGTH_SHORT).show();
+            getCurrentLocation();
             return;
         }
 
         progressBar.setVisibility(View.VISIBLE);
         rvSearchResults.setVisibility(View.GONE);
         tvNoResults.setVisibility(View.GONE);
+        searchResults.clear();
 
-        // Use Autocomplete for nearby search
+        // Search for nearby venues using Autocomplete
         AutocompleteSessionToken token = AutocompleteSessionToken.newInstance();
 
         FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
-                .setQuery("sports venue stadium court")
+                .setQuery("sports venue stadium court gym fitness")
                 .setTypeFilter(TypeFilter.ESTABLISHMENT)
                 .setSessionToken(token)
                 .build();
@@ -299,22 +357,36 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
                     if (response.getAutocompletePredictions() != null &&
                             !response.getAutocompletePredictions().isEmpty()) {
 
-                        searchResults.clear();
                         for (com.google.android.libraries.places.api.model.AutocompletePrediction prediction :
                                 response.getAutocompletePredictions()) {
                             fetchPlaceDetails(prediction.getPlaceId());
                         }
 
-                        // If no results after fetching
                         if (searchResults.isEmpty()) {
-                            rvSearchResults.setVisibility(View.GONE);
                             tvNoResults.setVisibility(View.VISIBLE);
                             tvNoResults.setText("No nearby sports venues found");
+                            if (googleMap != null) {
+                                googleMap.clear();
+                                if (currentLatLng != null) {
+                                    googleMap.addMarker(new MarkerOptions()
+                                            .position(currentLatLng)
+                                            .title("📍 Your Location")
+                                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                                }
+                            }
                         }
                     } else {
-                        rvSearchResults.setVisibility(View.GONE);
                         tvNoResults.setVisibility(View.VISIBLE);
                         tvNoResults.setText("No nearby sports venues found");
+                        if (googleMap != null) {
+                            googleMap.clear();
+                            if (currentLatLng != null) {
+                                googleMap.addMarker(new MarkerOptions()
+                                        .position(currentLatLng)
+                                        .title("📍 Your Location")
+                                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                            }
+                        }
                     }
                 })
                 .addOnFailureListener(exception -> {
@@ -329,27 +401,61 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
 
         googleMap.clear();
 
+        // Add current location marker
+        if (currentLatLng != null) {
+            googleMap.addMarker(new MarkerOptions()
+                    .position(currentLatLng)
+                    .title("📍 Your Location")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+        }
+
+        // Add venue markers
+        if (places != null && !places.isEmpty()) {
+            for (Place place : places) {
+                if (place.getLatLng() != null) {
+                    String title = place.getName() != null ? place.getName() : "Venue";
+                    String snippet = place.getAddress() != null ? place.getAddress() : "";
+
+                    if (place.getRating() != null) {
+                        snippet += " ⭐ " + place.getRating();
+                    }
+
+                    Marker marker = googleMap.addMarker(new MarkerOptions()
+                            .position(place.getLatLng())
+                            .title(title)
+                            .snippet(snippet)
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+                    marker.setTag(place);
+                }
+            }
+        }
+    }
+
+    private void zoomToFitMarkers(List<Place> places) {
+        if (places == null || places.isEmpty() || googleMap == null) return;
+
+        LatLngBounds.Builder builder = new LatLngBounds.Builder();
+
         for (Place place : places) {
             if (place.getLatLng() != null) {
-                Marker marker = googleMap.addMarker(new MarkerOptions()
-                        .position(place.getLatLng())
-                        .title(place.getName())
-                        .snippet(place.getAddress()));
-                marker.setTag(place);
+                builder.include(place.getLatLng());
             }
         }
 
-        if (!places.isEmpty() && places.get(0).getLatLng() != null) {
-            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                    places.get(0).getLatLng(), 14f));
+        if (currentLatLng != null) {
+            builder.include(currentLatLng);
         }
+
+        LatLngBounds bounds = builder.build();
+        int padding = 100;
+        googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding));
     }
 
     private void showSelectedVenue(Place place) {
         String name = place.getName() != null ? place.getName() : "Unknown Venue";
         String address = place.getAddress() != null ? place.getAddress() : "";
 
-        tvSelectedVenue.setText("📍 Selected: " + name);
+        tvSelectedVenue.setText("📍 Selected: " + name + " (" + address + ")");
         tvSelectedVenue.setVisibility(View.VISIBLE);
         btnBookSelected.setVisibility(View.VISIBLE);
         rvSearchResults.setVisibility(View.GONE);
@@ -360,6 +466,8 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(place.getLatLng(), 17f));
         }
     }
+
+    // In the proceedToBooking method, change from startActivity to startActivityForResult:
 
     private void proceedToBooking(Place place) {
         Intent intent = new Intent(this, BookingActivity.class);
@@ -372,26 +480,45 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
             intent.putExtra("longitude", place.getLatLng().longitude);
         }
 
+        // Use startActivityForResult to return to booking
         startActivity(intent);
+        finish();
+    }
+
+    private void hideKeyboard() {
+        View view = this.getCurrentFocus();
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+        }
     }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         this.googleMap = googleMap;
-        googleMap.setOnMarkerClickListener(this);
-        googleMap.getUiSettings().setZoomControlsEnabled(true);
-        googleMap.getUiSettings().setMyLocationButtonEnabled(true);
+        this.googleMap.setOnMarkerClickListener(this);
+        this.googleMap.getUiSettings().setZoomControlsEnabled(true);
+        this.googleMap.getUiSettings().setMyLocationButtonEnabled(true);
+        this.googleMap.getUiSettings().setCompassEnabled(true);
+        this.googleMap.getUiSettings().setMapToolbarEnabled(true);
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED) {
-            googleMap.setMyLocationEnabled(true);
+        if (isLocationPermissionGranted) {
+            try {
+                this.googleMap.setMyLocationEnabled(true);
+            } catch (SecurityException e) {
+                e.printStackTrace();
+            }
         }
 
         if (currentLatLng != null) {
-            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 14f));
+            this.googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 14f));
+            this.googleMap.addMarker(new MarkerOptions()
+                    .position(currentLatLng)
+                    .title("📍 Your Location")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
         } else {
-            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                    new LatLng(3.1390, 101.6869), 12f));
+            LatLng defaultLocation = new LatLng(3.1390, 101.6869);
+            this.googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 12f));
         }
     }
 
@@ -401,6 +528,10 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
             Place place = (Place) marker.getTag();
             selectedPlace = place;
             showSelectedVenue(place);
+            marker.showInfoWindow();
+            return true;
+        } else if (marker.getTitle() != null && marker.getTitle().contains("Your Location")) {
+            Toast.makeText(this, "📍 Your current location", Toast.LENGTH_SHORT).show();
             return true;
         }
         return false;
@@ -410,9 +541,23 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == LOCATION_PERMISSION_REQUEST && grantResults.length > 0
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            getCurrentLocation();
+
+        if (requestCode == LOCATION_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                isLocationPermissionGranted = true;
+                getCurrentLocation();
+
+                if (googleMap != null) {
+                    try {
+                        googleMap.setMyLocationEnabled(true);
+                    } catch (SecurityException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                Toast.makeText(this, "⚠️ Location permission denied. You can still search manually.",
+                        Toast.LENGTH_LONG).show();
+            }
         }
     }
 }

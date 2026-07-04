@@ -26,7 +26,7 @@
                 android:textColor="#009688"
                 android:layout_marginBottom="20dp"/>
 
-            <!-- Venue Selection -->
+            <!-- Venue Selection Section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -36,7 +36,6 @@
                 android:textColor="#333333"
                 android:layout_marginBottom="8dp"/>
 
-            <!-- Venue Name Display -->
             <TextView
                 android:id="@+id/tvVenueName"
                 android:layout_width="match_parent"
@@ -47,7 +46,6 @@
                 android:textColor="#009688"
                 android:layout_marginBottom="4dp"/>
 
-            <!-- Venue Address Display -->
             <TextView
                 android:id="@+id/tvVenueAddress"
                 android:layout_width="match_parent"
@@ -57,12 +55,11 @@
                 android:textColor="#666666"
                 android:layout_marginBottom="8dp"/>
 
-            <!-- Location Status -->
             <TextView
                 android:id="@+id/tvLocation"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="📍 Tap 'Search' or 'GPS' to select location"
+                android:text="📍 Tap 'Search' to find a venue or 'GPS' for current location"
                 android:textSize="13sp"
                 android:textColor="#888888"
                 android:layout_marginBottom="12dp"/>
@@ -75,11 +72,11 @@
                 android:layout_marginBottom="16dp">
 
                 <Button
-                    android:id="@+id/btnSearchLocation"
+                    android:id="@+id/btnSearchVenue"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
                     android:layout_weight="1"
-                    android:text="🔍 Search"
+                    android:text="🔍 Search Venue"
                     android:backgroundTint="#2196F3"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp"
@@ -109,48 +106,77 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="📅 Date and Time"
+                android:text="📅 Date AndTime"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="#333333"
                 android:layout_marginBottom="12dp"/>
 
+            <!-- Date Picker -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
 
-                <com.google.android.material.textfield.TextInputLayout
+                <TextView
+                    android:id="@+id/tvDate"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="56dp"
                     android:layout_weight="1"
+                    android:text="📅 Select Date"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:gravity="center_vertical|start"
+                    android:paddingStart="16dp"
                     android:layout_marginEnd="8dp"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    android:clickable="true"
+                    android:focusable="true"/>
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etDate"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Date"
-                        android:inputType="date"
-                        android:textSize="16sp"/>
-                </com.google.android.material.textfield.TextInputLayout>
+                <Button
+                    android:id="@+id/btnPickDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="56dp"
+                    android:text="📅"
+                    android:backgroundTint="#009688"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"/>
 
-                <com.google.android.material.textfield.TextInputLayout
+            </LinearLayout>
+
+            <!-- Time Picker -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:id="@+id/tvTime"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="56dp"
                     android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    android:text="🕐 Select Time"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:gravity="center_vertical|start"
+                    android:paddingStart="16dp"
+                    android:layout_marginEnd="8dp"
+                    android:clickable="true"
+                    android:focusable="true"/>
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etTime"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Time"
-                        android:inputType="time"
-                        android:textSize="16sp"/>
-                </com.google.android.material.textfield.TextInputLayout>
+                <Button
+                    android:id="@+id/btnPickTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="56dp"
+                    android:text="🕐"
+                    android:backgroundTint="#009688"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"/>
 
             </LinearLayout>
 
@@ -220,41 +246,5 @@
 
         </LinearLayout>
     </ScrollView>
-
-    <!-- Progress Overlay (Loading) -->
-    <FrameLayout
-        android:id="@+id/progressOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#80000000"
-        android:visibility="gone"
-        android:clickable="true">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:background="#FFFFFF"
-            android:padding="24dp"
-            android:elevation="8dp">
-
-            <ProgressBar
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:indeterminateTint="#009688"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Booking..."
-                android:textSize="14sp"
-                android:textColor="#333333"
-                android:layout_marginTop="8dp"/>
-
-        </LinearLayout>
-
-    </FrameLayout>
 
 </RelativeLayout>
