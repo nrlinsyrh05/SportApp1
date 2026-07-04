@@ -74,7 +74,7 @@ public class VenueSearchActivity extends AppCompatActivity implements OnMapReady
 
         // Initialize Google Places
         if (!Places.isInitialized()) {
-            Places.initialize(getApplicationContext(), "YOUR_GOOGLE_API_KEY_HERE");
+            Places.initialize(getApplicationContext(), "AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI");
         }
         placesClient = Places.createClient(this);
 
