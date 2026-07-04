@@ -164,7 +164,7 @@ public class BookingActivity extends AppCompatActivity {
                     .setContentTitle("🎉 Booking Confirmed!")
                     .setContentText(venueName + " - " + pax + " people on " + date)
                     .setStyle(new NotificationCompat.BigTextStyle()
-                            .bigText("✅ " + venueName + "\n👤 " + pax + " people\n📅 " + date + " at " + time))
+                            .bigText("📍 " + venueName + "\n👤 " + pax + " people\n📅 " + date + " at " + time))
                     .setAutoCancel(true)
                     .setSound(defaultSoundUri)
                     .setVibrate(new long[]{1000, 1000, 1000, 1000})
@@ -345,7 +345,7 @@ public class BookingActivity extends AppCompatActivity {
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         Toast.makeText(BookingActivity.this,
-                                "✅ Booking Confirmed!\n📍 " + finalVenueName + "\n👤 " + finalPax + " people",
+                                "✅ Booking Confirmed! ",
                                 Toast.LENGTH_LONG).show();
 
                         // 📱 SEND PUSH NOTIFICATION
