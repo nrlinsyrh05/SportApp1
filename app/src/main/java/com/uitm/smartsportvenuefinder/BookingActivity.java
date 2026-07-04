@@ -24,11 +24,8 @@ import com.google.android.gms.location.LocationServices;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -66,23 +63,14 @@ public class BookingActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_booking);
 
-        // ✅ STEP 1: Initialize Firebase
-        try {
-            FirebaseApp.initializeApp(this);
-            FirebaseDatabase database = FirebaseDatabase.getInstance();
-            database.setPersistenceEnabled(true);
-            mDatabase = database.getReference();
-            mAuth = FirebaseAuth.getInstance();
-            Log.d(TAG, "✅ Firebase initialized successfully!");
-        } catch (Exception e) {
-            Log.e(TAG, "❌ Firebase initialization failed: " + e.getMessage());
-            Toast.makeText(this, "❌ Firebase Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+        // Initialize Firebase
+        FirebaseApp.initializeApp(this);
+        FirebaseDatabase.getInstance().setPersistenceEnabled(true);
+        mDatabase = FirebaseDatabase.getInstance().getReference();
+        mAuth = FirebaseAuth.getInstance();
 
-        // ✅ STEP 2: Log Firebase Database URL
-        if (mDatabase != null) {
-            Log.d(TAG, "✅ Firebase Database URL: " + mDatabase.toString());
-        }
+        // Log Firebase URL
+        Log.d(TAG, "Firebase URL: " + mDatabase.toString());
 
         // Initialize location client
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -100,9 +88,6 @@ public class BookingActivity extends AppCompatActivity {
 
         // Set default PAX value
         etPax.setText("1");
-
-        // ✅ STEP 3: Test Firebase connection
-        testFirebaseConnection();
     }
 
     private void initViews() {
@@ -135,10 +120,9 @@ public class BookingActivity extends AppCompatActivity {
         btnPickTime.setOnClickListener(v -> showTimePickerDialog());
 
         btnConfirmBooking.setOnClickListener(v -> {
-            Toast.makeText(BookingActivity.this, "📌 Booking Started!", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Confirm button clicked");
             createBooking();
         });
-
         btnCancel.setOnClickListener(v -> finish());
 
         tvDate.setOnClickListener(v -> showDatePickerDialog());
@@ -256,143 +240,140 @@ public class BookingActivity extends AppCompatActivity {
                 });
     }
 
-    private void testFirebaseConnection() {
-        if (mDatabase == null) {
-            Log.e(TAG, "❌ mDatabase is null!");
-            Toast.makeText(this, "❌ Firebase not initialized", Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        DatabaseReference testRef = mDatabase.child(".info/connected");
-        testRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot snapshot) {
-                Boolean connected = snapshot.getValue(Boolean.class);
-                if (connected != null && connected) {
-                    Log.d(TAG, "✅✅✅ CONNECTED to Firebase! ✅✅✅");
-                    Toast.makeText(BookingActivity.this, "✅ Firebase Connected!", Toast.LENGTH_SHORT).show();
-                } else {
-                    Log.e(TAG, "❌❌❌ NOT CONNECTED to Firebase! ❌❌❌");
-                    Toast.makeText(BookingActivity.this, "❌ Firebase NOT Connected! Check google-services.json", Toast.LENGTH_LONG).show();
-                }
-            }
-
-            @Override
-            public void onCancelled(DatabaseError error) {
-                Log.e(TAG, "Firebase connection error: " + error.getMessage());
-                Toast.makeText(BookingActivity.this, "❌ Firebase Error: " + error.getMessage(), Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
     private void createBooking() {
-        // Check if Firebase is connected
-        if (mDatabase == null) {
-            Toast.makeText(this, "❌ Firebase not initialized", Toast.LENGTH_LONG).show();
-            return;
-        }
+        try {
+            // Get all input values
+            String date = tvDate.getText().toString().replace("📅 ", "").trim();
+            String time = tvTime.getText().toString().replace("🕐 ", "").trim();
+            String paxStr = etPax.getText().toString().trim();
 
-        // Get all input values
-        String date = tvDate.getText().toString().replace("📅 ", "").trim();
-        String time = tvTime.getText().toString().replace("🕐 ", "").trim();
-        String paxStr = etPax.getText().toString().trim();
+            // Validation
+            if (venueName.isEmpty() || venueName.equals("No venue selected")) {
+                Toast.makeText(this, "⚠️ Please select a venue", Toast.LENGTH_LONG).show();
+                return;
+            }
 
-        // VALIDATION
-        if (venueName.isEmpty() || venueName.equals("No venue selected")) {
-            Toast.makeText(this, "⚠️ Please select a venue", Toast.LENGTH_LONG).show();
-            return;
-        }
+            if (date.isEmpty()) {
+                Toast.makeText(this, "⚠️ Please select a date", Toast.LENGTH_LONG).show();
+                return;
+            }
 
-        if (date.isEmpty()) {
-            Toast.makeText(this, "⚠️ Please select a date", Toast.LENGTH_LONG).show();
-            return;
-        }
+            if (time.isEmpty()) {
+                Toast.makeText(this, "⚠️ Please select a time", Toast.LENGTH_LONG).show();
+                return;
+            }
 
-        if (time.isEmpty()) {
-            Toast.makeText(this, "⚠️ Please select a time", Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        int pax;
-        if (paxStr.isEmpty()) {
-            pax = 1;
-            etPax.setText("1");
-        } else {
-            try {
-                pax = Integer.parseInt(paxStr);
-                if (pax <= 0) {
+            int pax;
+            if (paxStr.isEmpty()) {
+                pax = 1;
+                etPax.setText("1");
+            } else {
+                try {
+                    pax = Integer.parseInt(paxStr);
+                    if (pax <= 0) {
+                        pax = 1;
+                        etPax.setText("1");
+                    }
+                } catch (NumberFormatException e) {
                     pax = 1;
                     etPax.setText("1");
                 }
-            } catch (NumberFormatException e) {
-                pax = 1;
-                etPax.setText("1");
             }
-        }
 
-        final int finalPax = pax;
+            final int finalPax = pax;
+            final String finalDate = date;
+            final String finalTime = time;
 
-        // Check authentication
-        FirebaseUser currentUser = mAuth.getCurrentUser();
-        if (currentUser == null) {
-            Toast.makeText(this, "⚠️ Please login first", Toast.LENGTH_LONG).show();
-            startActivity(new Intent(this, LoginActivity.class));
-            finish();
-            return;
-        }
+            // Check authentication
+            FirebaseUser currentUser = mAuth.getCurrentUser();
+            if (currentUser == null) {
+                Toast.makeText(this, "⚠️ Please login first", Toast.LENGTH_LONG).show();
+                startActivity(new Intent(this, LoginActivity.class));
+                finish();
+                return;
+            }
 
-        Log.d(TAG, "User authenticated: " + currentUser.getEmail());
-        Toast.makeText(this, "📤 Saving booking...", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "User: " + currentUser.getEmail());
+            Log.d(TAG, "Venue: " + venueName);
+            Log.d(TAG, "Date: " + finalDate);
+            Log.d(TAG, "Time: " + finalTime);
+            Log.d(TAG, "PAX: " + finalPax);
 
-        // Create booking ID
-        String userId = currentUser.getUid();
-        String bookingId = mDatabase.child("bookings").push().getKey();
+            Toast.makeText(this, "📤 Saving booking...", Toast.LENGTH_SHORT).show();
 
-        if (bookingId == null) {
-            Toast.makeText(this, "❌ Failed to create booking ID", Toast.LENGTH_LONG).show();
-            return;
-        }
+            // Create booking ID
+            String userId = currentUser.getUid();
+            String bookingId = mDatabase.child("bookings").push().getKey();
 
-        Log.d(TAG, "Booking ID: " + bookingId);
+            if (bookingId == null) {
+                Toast.makeText(this, "❌ Failed to create booking", Toast.LENGTH_LONG).show();
+                return;
+            }
 
-        // Create booking object
-        Booking booking = new Booking();
-        booking.setBookingId(bookingId);
-        booking.setUserId(userId);
-        booking.setVenueId(placeId);
-        booking.setVenueName(venueName);
-        booking.setVenueAddress(venueAddress);
-        booking.setBookingDate(date);
-        booking.setBookingTime(time);
-        booking.setPax(finalPax);
-        booking.setStatus("Pending");
-        booking.setTimestamp(System.currentTimeMillis());
-        booking.setLatitude(latitude);
-        booking.setLongitude(longitude);
-        booking.setUserName(currentUser.getDisplayName() != null ?
-                currentUser.getDisplayName() : "User");
-        booking.setUserEmail(currentUser.getEmail() != null ?
-                currentUser.getEmail() : "");
+            Log.d(TAG, "Booking ID: " + bookingId);
 
-        final String finalVenueName = venueName;
+            // Create booking object
+            Booking booking = new Booking();
+            booking.setBookingId(bookingId);
+            booking.setUserId(userId);
+            booking.setVenueId(placeId);
+            booking.setVenueName(venueName);
+            booking.setVenueAddress(venueAddress);
+            booking.setBookingDate(finalDate);
+            booking.setBookingTime(finalTime);
+            booking.setPax(finalPax);
+            booking.setStatus("Pending");
+            booking.setTimestamp(System.currentTimeMillis());
+            booking.setLatitude(latitude);
+            booking.setLongitude(longitude);
+            booking.setUserName(currentUser.getDisplayName() != null ?
+                    currentUser.getDisplayName() : "User");
+            booking.setUserEmail(currentUser.getEmail() != null ?
+                    currentUser.getEmail() : "");
 
-        // Save to Firebase
-        mDatabase.child("bookings").child(bookingId).setValue(booking)
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Log.d(TAG, "✅ Booking saved successfully!");
+            Log.d(TAG, "Booking object created");
+
+            final String finalVenueName = venueName;
+
+            // Try saving to Firebase with both listeners
+            mDatabase.child("bookings").child(bookingId).setValue(booking)
+                    .addOnCompleteListener(task -> {
+                        Log.d(TAG, "onComplete triggered, success: " + task.isSuccessful());
+
+                        if (task.isSuccessful()) {
+                            Log.d(TAG, "✅ Booking saved successfully!");
+                            Toast.makeText(BookingActivity.this,
+                                    "✅ Booking Confirmed!\n📍 " + finalVenueName + "\n👤 " + finalPax + " people",
+                                    Toast.LENGTH_LONG).show();
+                            finish();
+                        } else {
+                            Exception e = task.getException();
+                            String errorMsg = e != null ? e.getMessage() : "Unknown error";
+                            Log.e(TAG, "❌ Booking failed: " + errorMsg);
+                            Toast.makeText(BookingActivity.this,
+                                    "❌ Failed: " + errorMsg,
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "❌ Failure listener: " + e.getMessage());
                         Toast.makeText(BookingActivity.this,
-                                "✅✅✅ BOOKING CONFIRMED! ✅✅✅\n📍 " + finalVenueName + "\n👤 " + finalPax + " people",
+                                "❌ Failed: " + e.getMessage(),
                                 Toast.LENGTH_LONG).show();
-                        finish();
-                    } else {
-                        Exception e = task.getException();
-                        Log.e(TAG, "❌ Booking failed: " + (e != null ? e.getMessage() : "Unknown error"));
-                        Toast.makeText(BookingActivity.this,
-                                "❌ Failed: " + (e != null ? e.getMessage() : "Check internet"),
-                                Toast.LENGTH_LONG).show();
-                    }
-                });
+                    });
+
+            // Timeout after 15 seconds
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                Toast.makeText(this,
+                        "⏳ Still waiting... Check internet connection and Firebase rules",
+                        Toast.LENGTH_LONG).show();
+                Log.d(TAG, "Timeout - Firebase operation taking too long");
+            }, 15000);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Create booking error: " + e.getMessage());
+            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
