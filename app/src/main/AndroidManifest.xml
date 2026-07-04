@@ -17,17 +17,15 @@
         android:theme="@style/Theme.SmartSportVenueFinder">
 
         <activity
-            android:name=".VenueSearchAdapter"
+            android:name=".EditBookingActivity"
             android:exported="false" />
-        <activity
-            android:name=".VenueSearchActivity"
-            android:exported="false" /> <!-- Google Maps & Places API Key -->
+        <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_GOOGLE_API_KEY_HERE" />
+            android:value="AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI" /> <!-- Google Places API Key -->
         <meta-data
             android:name="com.google.android.libraries.places.PLACES_API_KEY"
-            android:value="YOUR_GOOGLE_API_KEY_HERE" /> <!-- Activities -->
+            android:value="AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI" /> <!-- Splash Screen (Launcher Activity) -->
         <activity
             android:name=".SplashActivity"
             android:exported="true"
@@ -37,7 +35,7 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity> <!-- Other Activities -->
         <activity
             android:name=".LoginActivity"
             android:exported="false" />
@@ -67,7 +65,10 @@
             android:exported="false" />
         <activity
             android:name=".ReviewActivity"
-            android:exported="false" /> <!-- FCM Service -->
+            android:exported="false" />
+        <activity
+            android:name=".VenueSearchActivity"
+            android:exported="false" /> <!-- FCM Service for Push Notifications -->
         <service
             android:name=".MyFirebaseMessagingService"
             android:exported="false">
