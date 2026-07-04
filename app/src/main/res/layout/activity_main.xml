@@ -4,26 +4,58 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F5F5F5">
+    android:background="#F0F4F8">
 
-    <!-- Header -->
-    <TextView
+    <!-- Header - Only App Title -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="🏟️ Sport Venue Finder"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:textColor="#FFFFFF"
-        android:background="#009688"
-        android:padding="16dp"
-        android:gravity="center"/>
+        android:orientation="vertical"
+        android:background="@color/primary_color"
+        android:padding="20dp"
+        android:paddingTop="40dp"
+        android:paddingBottom="20dp"
+        android:gravity="center_horizontal">
 
-    <!-- Navigation Buttons -->
+        <!-- App Title -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🏟️ SportConnect"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"/>
+
+    </LinearLayout>
+
+    <!-- Welcome Text - Below Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="#FFFFFF"
+        android:elevation="2dp">
+
+        <TextView
+            android:id="@+id/tvWelcome"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="👋 Welcome back!"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:gravity="center"/>
+
+    </LinearLayout>
+
+    <!-- Quick Action Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:padding="12dp"
+        android:layout_marginTop="8dp">
 
         <Button
             android:id="@+id/btnSearchVenue"
@@ -31,19 +63,13 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="🔍 Search"
-            android:backgroundTint="#9C27B0"
+            android:backgroundTint="#7B1FA2"
             android:textColor="#FFFFFF"
-            android:layout_margin="4dp"/>
-
-        <Button
-            android:id="@+id/btnBookVenue"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="📅 Book"
-            android:backgroundTint="#009688"
-            android:textColor="#FFFFFF"
-            android:layout_margin="4dp"/>
+            android:layout_margin="4dp"
+            android:padding="14dp"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:cornerRadius="8dp"/>
 
         <Button
             android:id="@+id/btnMap"
@@ -51,89 +77,132 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="🗺️ Map"
-            android:backgroundTint="#2196F3"
+            android:backgroundTint="#0288D1"
             android:textColor="#FFFFFF"
-            android:layout_margin="4dp"/>
-
-        <Button
-            android:id="@+id/btnBookingHistory"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="📋 Bookings"
-            android:backgroundTint="#FF9800"
-            android:textColor="#FFFFFF"
-            android:layout_margin="4dp"/>
+            android:layout_margin="4dp"
+            android:padding="14dp"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:cornerRadius="8dp"/>
 
     </LinearLayout>
-
-    <!-- Welcome Message -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="👋 Book your favorite sports venue!"
-        android:textSize="16sp"
-        android:textColor="#666666"
-        android:gravity="center"
-        android:padding="16dp"/>
 
     <!-- Quick Book Card -->
-    <LinearLayout
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:background="#FFFFFF"
-        android:padding="20dp"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:elevation="4dp">
+        android:layout_margin="12dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="6dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🏸 Quick Book"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="#009688"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Book a venue instantly"
-            android:textSize="14sp"
-            android:textColor="#666666"
-            android:layout_marginTop="4dp"/>
-
-        <Button
-            android:id="@+id/btnQuickBook"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="📅 Book Now"
-            android:backgroundTint="#009688"
-            android:textColor="#FFFFFF"
-            android:layout_marginTop="12dp"
-            android:textSize="16sp"/>
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center">
 
-    </LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🏸 Quick Book"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary_color"/>
 
-    <!-- Status Message -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Book a venue instantly"
+                android:textSize="14sp"
+                android:textColor="#757575"
+                android:layout_marginTop="4dp"/>
+
+            <Button
+                android:id="@+id/btnQuickBook"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="📅 Book Now"
+                android:backgroundTint="@color/primary_color"
+                android:textColor="#FFFFFF"
+                android:layout_marginTop="16dp"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:cornerRadius="8dp"/>
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"/>
+
+    <!-- Your Bookings -->
     <TextView
-        android:id="@+id/tvStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="📋 Your Bookings"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="14sp"
-        android:textColor="#666666"
-        android:gravity="center"
-        android:padding="8dp"/>
+        android:layout_margin="12dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="3dp">
 
-    <!-- Bottom Buttons - FIXED: Changed layout_marginTop to a proper dimension -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="View all your bookings"
+                android:textSize="14sp"
+                android:textColor="#757575"/>
+
+            <Button
+                android:id="@+id/btnBookingHistory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="View All"
+                android:backgroundTint="#FF6F00"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                app:cornerRadius="8dp"/>
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Bottom Navigation -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="8dp"
-        android:layout_marginTop="16dp">
+        android:layout_marginTop="16dp"
+        android:background="#FFFFFF"
+        android:elevation="8dp">
 
         <Button
             android:id="@+id/btnProfile"
@@ -141,9 +210,13 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="👤 Profile"
-            android:backgroundTint="#607D8B"
+            android:backgroundTint="#455A64"
             android:textColor="#FFFFFF"
-            android:layout_margin="4dp"/>
+            android:layout_margin="4dp"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:padding="12dp"
+            app:cornerRadius="8dp"/>
 
         <Button
             android:id="@+id/btnLogout"
@@ -151,9 +224,13 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="🚪 Logout"
-            android:backgroundTint="#F44336"
+            android:backgroundTint="#D32F2F"
             android:textColor="#FFFFFF"
-            android:layout_margin="4dp"/>
+            android:layout_margin="4dp"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:padding="12dp"
+            app:cornerRadius="8dp"/>
 
     </LinearLayout>
 
