@@ -1,14 +1,13 @@
 {
   "project_info": {
-    "project_number": "1064868856944",
-    "firebase_url": "https://smartsportvenuefinder-default-rtdb.firebaseio.com",
-    "project_id": "smartsportvenuefinder",
-    "storage_bucket": "smartsportvenuefinder.firebasestorage.app"
+    "project_number": "1084535118205",
+    "project_id": "smartsportapp-bd34c",
+    "storage_bucket": "smartsportapp-bd34c.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1064868856944:android:f06bdbaf8cd933c30aa0b5",
+        "mobilesdk_app_id": "1:1084535118205:android:74d82338813313c49c1414",
         "android_client_info": {
           "package_name": "com.uitm.smartsportvenuefinder"
         }
@@ -16,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDqLzMuhF-9JY4fnHe_G5kgsxBbNWh2wj4"
+          "current_key": "AIzaSyBelllJswOlrDFYRO8p5iNSBxlBd4jb4ns"
         }
       ],
       "services": {
