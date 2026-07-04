@@ -294,7 +294,7 @@ public class EditBookingActivity extends AppCompatActivity {
 
                     if (task.isSuccessful()) {
                         Toast.makeText(EditBookingActivity.this,
-                                "✅ Booking Updated!\n📍 " + venueName + "\n👤 " + pax + " people",
+                                "✅ Booking Updated!",
                                 Toast.LENGTH_LONG).show();
                         finish();
                     } else {

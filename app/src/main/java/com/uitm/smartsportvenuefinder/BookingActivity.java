@@ -38,21 +38,17 @@ import java.util.Locale;
 
 public class BookingActivity extends AppCompatActivity {
 
-    // UI Components
     private EditText etPax;
     private TextView tvVenueName, tvVenueAddress, tvLocation, tvDate, tvTime;
     private Button btnSearchVenue, btnGetGps, btnConfirmBooking, btnCancel, btnPickDate, btnPickTime;
 
-    // Firebase
     private DatabaseReference mDatabase;
     private FirebaseAuth mAuth;
-
-    // Location
     private FusedLocationProviderClient fusedLocationClient;
+
     private double latitude = 0, longitude = 0;
     private String venueName = "", venueAddress = "", placeId = "";
 
-    // Date & Time
     private Calendar selectedDate = Calendar.getInstance();
     private Calendar selectedTime = Calendar.getInstance();
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
@@ -63,7 +59,6 @@ public class BookingActivity extends AppCompatActivity {
     private static final String CHANNEL_NAME = "Booking Notifications";
     private static final int NOTIFICATION_ID = 1001;
 
-    // Constants
     private static final int LOCATION_PERMISSION_REQUEST = 1001;
     private static final int VENUE_SEARCH_REQUEST = 1002;
 
@@ -74,32 +69,16 @@ public class BookingActivity extends AppCompatActivity {
 
         // Initialize Firebase
         FirebaseApp.initializeApp(this);
-        FirebaseDatabase.getInstance().setPersistenceEnabled(true);
         mDatabase = FirebaseDatabase.getInstance().getReference();
         mAuth = FirebaseAuth.getInstance();
-
-        // Initialize location client
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         // Create notification channel
         createNotificationChannel();
 
+        // Initialize location
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
         // Initialize views
-        initViews();
-        setupListeners();
-
-        // Set current date and time as default
-        updateDateDisplay();
-        updateTimeDisplay();
-
-        // Check if coming from VenueSearch with data (AUTO-FILL)
-        handleIncomingVenueData();
-
-        // Set default PAX value
-        etPax.setText("1");
-    }
-
-    private void initViews() {
         tvVenueName = findViewById(R.id.tvVenueName);
         tvVenueAddress = findViewById(R.id.tvVenueAddress);
         tvLocation = findViewById(R.id.tvLocation);
@@ -113,12 +92,15 @@ public class BookingActivity extends AppCompatActivity {
         btnConfirmBooking = findViewById(R.id.btnConfirmBooking);
         btnCancel = findViewById(R.id.btnCancel);
 
+        // Set default values
         tvVenueName.setText("No venue selected");
         tvVenueAddress.setText("");
-        tvLocation.setText("📍 Tap 'Search' to find a venue or 'GPS' for current location");
-    }
+        tvLocation.setText("📍 Tap 'Search' to find a venue");
+        etPax.setText("1");
+        updateDateDisplay();
+        updateTimeDisplay();
 
-    private void setupListeners() {
+        // Setup listeners
         btnSearchVenue.setOnClickListener(v -> {
             Intent intent = new Intent(BookingActivity.this, VenueSearchActivity.class);
             startActivityForResult(intent, VENUE_SEARCH_REQUEST);
@@ -132,6 +114,69 @@ public class BookingActivity extends AppCompatActivity {
 
         tvDate.setOnClickListener(v -> showDatePickerDialog());
         tvTime.setOnClickListener(v -> showTimePickerDialog());
+
+        // Check for incoming venue data
+        if (getIntent().hasExtra("venueName")) {
+            venueName = getIntent().getStringExtra("venueName");
+            venueAddress = getIntent().getStringExtra("venueAddress");
+            placeId = getIntent().getStringExtra("venueId");
+            latitude = getIntent().getDoubleExtra("latitude", 0);
+            longitude = getIntent().getDoubleExtra("longitude", 0);
+
+            tvVenueName.setText(venueName);
+            tvVenueAddress.setText(venueAddress);
+            tvLocation.setText("📍 " + venueAddress);
+            Toast.makeText(this, "✅ Venue loaded: " + venueName, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("Booking confirmation notifications");
+            channel.enableVibration(true);
+            channel.setShowBadge(true);
+
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(channel);
+        }
+    }
+
+    private void sendBookingNotification(String venueName, int pax, String date, String time) {
+        try {
+            Intent intent = new Intent(this, BookingHistoryActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            PendingIntent pendingIntent = PendingIntent.getActivity(
+                    this,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+
+            Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle("🎉 Booking Confirmed!")
+                    .setContentText(venueName + " - " + pax + " people on " + date)
+                    .setStyle(new NotificationCompat.BigTextStyle()
+                            .bigText("✅ " + venueName + "\n👤 " + pax + " people\n📅 " + date + " at " + time))
+                    .setAutoCancel(true)
+                    .setSound(defaultSoundUri)
+                    .setVibrate(new long[]{1000, 1000, 1000, 1000})
+                    .setContentIntent(pendingIntent)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH);
+
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            manager.notify(NOTIFICATION_ID, builder.build());
+        } catch (Exception e) {
+            // Silent fail - notification is optional
+            e.printStackTrace();
+        }
     }
 
     private void showDatePickerDialog() {
@@ -172,51 +217,6 @@ public class BookingActivity extends AppCompatActivity {
         tvTime.setText("🕐 " + timeFormat.format(selectedTime.getTime()));
     }
 
-    private void handleIncomingVenueData() {
-        if (getIntent().hasExtra("venueName")) {
-            venueName = getIntent().getStringExtra("venueName");
-            venueAddress = getIntent().getStringExtra("venueAddress");
-            placeId = getIntent().getStringExtra("venueId");
-            latitude = getIntent().getDoubleExtra("latitude", 0);
-            longitude = getIntent().getDoubleExtra("longitude", 0);
-
-            tvVenueName.setText(venueName);
-            tvVenueAddress.setText(venueAddress);
-
-            if (latitude != 0 && longitude != 0) {
-                tvLocation.setText("📍 " + String.format("%.6f", latitude) + ", " + String.format("%.6f", longitude));
-            } else {
-                tvLocation.setText("📍 " + venueAddress);
-            }
-
-            Toast.makeText(this, "✅ Venue loaded: " + venueName, Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == VENUE_SEARCH_REQUEST && resultCode == RESULT_OK && data != null) {
-            venueName = data.getStringExtra("venueName");
-            venueAddress = data.getStringExtra("venueAddress");
-            placeId = data.getStringExtra("venueId");
-            latitude = data.getDoubleExtra("latitude", 0);
-            longitude = data.getDoubleExtra("longitude", 0);
-
-            tvVenueName.setText(venueName);
-            tvVenueAddress.setText(venueAddress);
-
-            if (latitude != 0 && longitude != 0) {
-                tvLocation.setText("📍 " + String.format("%.6f", latitude) + ", " + String.format("%.6f", longitude));
-            } else {
-                tvLocation.setText("📍 " + venueAddress);
-            }
-
-            Toast.makeText(this, "✅ Venue selected: " + venueName, Toast.LENGTH_SHORT).show();
-        }
-    }
-
     private void getCurrentLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -224,6 +224,8 @@ public class BookingActivity extends AppCompatActivity {
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST);
             return;
         }
+
+        Toast.makeText(this, "📍 Getting location...", Toast.LENGTH_SHORT).show();
 
         fusedLocationClient.getLastLocation()
                 .addOnCompleteListener(this, task -> {
@@ -245,71 +247,36 @@ public class BookingActivity extends AppCompatActivity {
                 });
     }
 
-    // ============ NOTIFICATION METHODS ============
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_HIGH
-            );
-            channel.setDescription("Booking confirmation notifications");
-            channel.enableVibration(true);
-            channel.setShowBadge(true);
+        if (requestCode == VENUE_SEARCH_REQUEST && resultCode == RESULT_OK && data != null) {
+            venueName = data.getStringExtra("venueName");
+            venueAddress = data.getStringExtra("venueAddress");
+            placeId = data.getStringExtra("venueId");
+            latitude = data.getDoubleExtra("latitude", 0);
+            longitude = data.getDoubleExtra("longitude", 0);
 
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(channel);
+            tvVenueName.setText(venueName);
+            tvVenueAddress.setText(venueAddress);
+            tvLocation.setText("📍 " + venueAddress);
+
+            Toast.makeText(this, "✅ Venue selected: " + venueName, Toast.LENGTH_SHORT).show();
         }
     }
-
-    private void sendBookingNotification(String venueName, int pax, String date, String time) {
-        try {
-            // Intent to open BookingHistory when notification is tapped
-            Intent intent = new Intent(this, BookingHistoryActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            PendingIntent pendingIntent = PendingIntent.getActivity(
-                    this,
-                    0,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
-
-            Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setSmallIcon(R.mipmap.ic_launcher)
-                    .setContentTitle("🎉 Booking Confirmed!")
-                    .setContentText(venueName + " - " + pax + " people on " + date)
-                    .setStyle(new NotificationCompat.BigTextStyle()
-                            .bigText("📍 " + venueName + "\n👤 " + pax + " people\n📅 " + date + " at " + time))
-                    .setAutoCancel(true)
-                    .setSound(defaultSoundUri)
-                    .setVibrate(new long[]{1000, 1000, 1000, 1000})
-                    .setContentIntent(pendingIntent)
-                    .setPriority(NotificationCompat.PRIORITY_HIGH);
-
-            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            manager.notify(NOTIFICATION_ID, builder.build());
-        } catch (Exception e) {
-            // Silent fail - notification is optional
-            e.printStackTrace();
-        }
-    }
-
-    // ============ BOOKING METHOD ============
 
     private void createBooking() {
-        // Get all input values
-        String date = tvDate.getText().toString().replace("📅 ", "").trim();
-        String time = tvTime.getText().toString().replace("🕐 ", "").trim();
-        String paxStr = etPax.getText().toString().trim();
-
-        // Validation
+        // Validate venue
         if (venueName.isEmpty() || venueName.equals("No venue selected")) {
             Toast.makeText(this, "⚠️ Please select a venue", Toast.LENGTH_LONG).show();
             return;
         }
+
+        // Get date and time
+        String date = tvDate.getText().toString().replace("📅 ", "").trim();
+        String time = tvTime.getText().toString().replace("🕐 ", "").trim();
+        String paxStr = etPax.getText().toString().trim();
 
         if (date.isEmpty()) {
             Toast.makeText(this, "⚠️ Please select a date", Toast.LENGTH_LONG).show();
@@ -322,27 +289,14 @@ public class BookingActivity extends AppCompatActivity {
         }
 
         int pax;
-        if (paxStr.isEmpty()) {
+        try {
+            pax = Integer.parseInt(paxStr);
+            if (pax <= 0) pax = 1;
+        } catch (NumberFormatException e) {
             pax = 1;
-            etPax.setText("1");
-        } else {
-            try {
-                pax = Integer.parseInt(paxStr);
-                if (pax <= 0) {
-                    pax = 1;
-                    etPax.setText("1");
-                }
-            } catch (NumberFormatException e) {
-                pax = 1;
-                etPax.setText("1");
-            }
         }
 
-        final int finalPax = pax;
-        final String finalDate = date;
-        final String finalTime = time;
-
-        // Check authentication
+        // Check user
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser == null) {
             Toast.makeText(this, "⚠️ Please login first", Toast.LENGTH_LONG).show();
@@ -350,8 +304,6 @@ public class BookingActivity extends AppCompatActivity {
             finish();
             return;
         }
-
-        Toast.makeText(this, "📤 Saving booking...", Toast.LENGTH_SHORT).show();
 
         // Create booking ID
         String userId = currentUser.getUid();
@@ -369,9 +321,9 @@ public class BookingActivity extends AppCompatActivity {
         booking.setVenueId(placeId);
         booking.setVenueName(venueName);
         booking.setVenueAddress(venueAddress);
-        booking.setBookingDate(finalDate);
-        booking.setBookingTime(finalTime);
-        booking.setPax(finalPax);
+        booking.setBookingDate(date);
+        booking.setBookingTime(time);
+        booking.setPax(pax);
         booking.setStatus("Pending");
         booking.setTimestamp(System.currentTimeMillis());
         booking.setLatitude(latitude);
@@ -382,26 +334,29 @@ public class BookingActivity extends AppCompatActivity {
                 currentUser.getEmail() : "");
 
         final String finalVenueName = venueName;
+        final int finalPax = pax;
+        final String finalDate = date;
+        final String finalTime = time;
+
+        Toast.makeText(this, "📤 Saving booking...", Toast.LENGTH_SHORT).show();
 
         // Save to Firebase
         mDatabase.child("bookings").child(bookingId).setValue(booking)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
-                        // ✅ Show success message
                         Toast.makeText(BookingActivity.this,
-                                "✅ Booking Confirmed! ",
+                                "✅ Booking Confirmed!\n📍 " + finalVenueName + "\n👤 " + finalPax + " people",
                                 Toast.LENGTH_LONG).show();
 
-                        // 📱 Send push notification
+                        // 📱 SEND PUSH NOTIFICATION
                         sendBookingNotification(finalVenueName, finalPax, finalDate, finalTime);
 
-                        // Close activity after delay
-                        new android.os.Handler().postDelayed(() -> finish(), 1500);
+                        finish();
                     } else {
-                        Exception e = task.getException();
-                        String errorMsg = e != null ? e.getMessage() : "Unknown error";
+                        String error = task.getException() != null ?
+                                task.getException().getMessage() : "Unknown error";
                         Toast.makeText(BookingActivity.this,
-                                "❌ Booking Failed: " + errorMsg,
+                                "❌ Booking Failed: " + error,
                                 Toast.LENGTH_LONG).show();
                     }
                 });
