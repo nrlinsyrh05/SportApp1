@@ -9,7 +9,6 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-
         android:name=".MyApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -17,11 +16,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SmartSportVenueFinder">
-
+        <activity
+            android:name=".ContactAdminActivity"
+            android:exported="false" />
         <activity
             android:name=".EditBookingActivity"
-            android:exported="false" />
-        <!-- Google Maps API Key -->
+            android:exported="false" /> <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI" /> <!-- Google Places API Key -->
@@ -78,8 +78,6 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-
-
     </application>
 
 </manifest>

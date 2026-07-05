@@ -16,7 +16,7 @@ import com.google.firebase.database.ValueEventListener;
 
 public class MainActivity extends AppCompatActivity {
 
-    private Button btnSearchVenue, btnMap, btnBookingHistory, btnProfile, btnLogout, btnQuickBook;
+    private Button btnSearchVenue, btnMap, btnBookingHistory, btnProfile, btnLogout, btnQuickBook, btnContactAdmin;
     private TextView tvWelcome;
     private static final String TAG = "MainActivity";
 
@@ -32,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
         btnProfile = findViewById(R.id.btnProfile);
         btnLogout = findViewById(R.id.btnLogout);
         btnQuickBook = findViewById(R.id.btnQuickBook);
+        btnContactAdmin = findViewById(R.id.btnContactAdmin);
         tvWelcome = findViewById(R.id.tvWelcome);
 
         // Load user info
@@ -56,6 +57,9 @@ public class MainActivity extends AppCompatActivity {
 
         btnProfile.setOnClickListener(v -> {
             startActivity(new Intent(MainActivity.this, ProfileActivity.class));
+        });
+        btnContactAdmin.setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, ContactAdminActivity.class));
         });
 
         btnLogout.setOnClickListener(v -> {
