@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA">
+    android:background="@drawable/bg">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -35,7 +35,7 @@
             android:layout_height="wrap_content"
             android:text="Need help? Contact our administrator using one of the options below."
             android:textAlignment="center"
-            android:textColor="#666666"
+            android:textColor="@color/quantum_black_100"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="20dp"
             android:layout_gravity="center"/>
