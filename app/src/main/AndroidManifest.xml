@@ -63,9 +63,6 @@
             android:name=".ProfileActivity"
             android:exported="false" />
         <activity
-            android:name=".ReviewActivity"
-            android:exported="false" />
-        <activity
             android:name=".VenueSearchActivity"
             android:exported="false" /> <!-- FCM Service for Push Notifications -->
         <service
