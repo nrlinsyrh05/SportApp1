@@ -48,9 +48,6 @@
             android:name=".MainActivity"
             android:exported="false" />
         <activity
-            android:name=".VenueDetailActivity"
-            android:exported="false" />
-        <activity
             android:name=".BookingActivity"
             android:exported="false" />
         <activity

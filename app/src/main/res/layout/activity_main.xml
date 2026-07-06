@@ -26,7 +26,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🏟️ SportConnect"
+            android:text="🏟️ Smart Sport Venue Finder"
             android:textSize="26sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF"/>
@@ -67,7 +67,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="🔍 Search"
+            android:text="Search"
             android:backgroundTint="#7B1FA2"
             android:textColor="#FFFFFF"
             android:layout_margin="4dp"
@@ -81,7 +81,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="🗺️ Map"
+            android:text="🗺Map"
             android:backgroundTint="#0288D1"
             android:textColor="#FFFFFF"
             android:layout_margin="4dp"
@@ -110,7 +110,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🏸 Quick Book"
+                android:text="Quick Book"
                 android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="@color/primary_color"/>
@@ -127,7 +127,7 @@
                 android:id="@+id/btnQuickBook"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:text="📅 Book Now"
+                android:text="Book Now"
                 android:backgroundTint="@color/primary_color"
                 android:textColor="#FFFFFF"
                 android:layout_marginTop="16dp"
@@ -288,7 +288,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="🚪 Logout"
+            android:text="Logout"
             android:backgroundTint="#D32F2F"
             android:textColor="#FFFFFF"
             android:layout_margin="4dp"
