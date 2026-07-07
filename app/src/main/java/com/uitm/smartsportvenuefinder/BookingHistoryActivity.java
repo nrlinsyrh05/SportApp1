@@ -199,17 +199,23 @@ public class BookingHistoryActivity extends AppCompatActivity implements Booking
         // Keep this method but it won't be called
     }
 
+    // ==================== DELETE FUNCTIONALITY ====================
+
     @Override
     public void onDelete(Booking booking) {
+        // Show confirmation dialog
         confirmDeleteBooking(booking);
     }
 
     private void confirmDeleteBooking(Booking booking) {
         new AlertDialog.Builder(this)
-                .setTitle("Delete Booking")
+                .setTitle("🗑️ Delete Booking")
                 .setMessage("Are you sure you want to delete this booking for " + booking.venueName + "?")
                 .setPositiveButton("Delete", (dialog, which) -> deleteBooking(booking))
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton("Cancel", (dialog, which) -> {
+                    // Cancel toast - optional
+                    Toast.makeText(this, "Deletion cancelled", Toast.LENGTH_SHORT).show();
+                })
                 .show();
     }
 
@@ -220,11 +226,18 @@ public class BookingHistoryActivity extends AppCompatActivity implements Booking
                 .removeValue()
                 .addOnCompleteListener(task -> {
                     progressBar.setVisibility(View.GONE);
+
                     if (task.isSuccessful()) {
-                        Toast.makeText(this, "✅ Booking deleted!", Toast.LENGTH_SHORT).show();
-                        loadBookings();
+                        // ✅ SUCCESS TOAST
+                        Toast.makeText(BookingHistoryActivity.this,
+                                "✅ Booking Deleted Successfully! ",
+                                Toast.LENGTH_LONG).show();
+                        loadBookings(); // Refresh the list
                     } else {
-                        Toast.makeText(this, "❌ Delete failed: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                        // ❌ FAILURE TOAST
+                        Toast.makeText(BookingHistoryActivity.this,
+                                "❌ Delete Failed: " + task.getException().getMessage(),
+                                Toast.LENGTH_SHORT).show();
                     }
                 });
     }

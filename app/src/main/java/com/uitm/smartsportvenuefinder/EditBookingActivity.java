@@ -94,7 +94,7 @@ public class EditBookingActivity extends AppCompatActivity {
         progressOverlay = findViewById(R.id.progressOverlay);
 
         // Change button text to "Update"
-        btnUpdateBooking.setText("📤 Update Booking");
+        btnUpdateBooking.setText(" Update Booking");
     }
 
     private void setupListeners() {
