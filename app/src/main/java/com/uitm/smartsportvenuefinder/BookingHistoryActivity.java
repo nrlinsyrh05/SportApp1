@@ -2,8 +2,11 @@ package com.uitm.smartsportvenuefinder;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -23,9 +26,11 @@ public class BookingHistoryActivity extends AppCompatActivity implements Booking
     private ListView lvBookings;
     private ProgressBar progressBar;
     private TextView tvNoBookings;
-    private Button btnRefresh;
+    private Button btnRefresh, btnClearSearch;
+    private EditText etSearch;
     private DatabaseReference mDatabase;
     private ArrayList<Booking> bookingList;
+    private ArrayList<Booking> filteredList;
     private BookingAdapter adapter;
     private ValueEventListener bookingListener;
 
@@ -49,15 +54,79 @@ public class BookingHistoryActivity extends AppCompatActivity implements Booking
         progressBar = findViewById(R.id.progressBar);
         tvNoBookings = findViewById(R.id.tvNoBookings);
         btnRefresh = findViewById(R.id.btnRefresh);
+        btnClearSearch = findViewById(R.id.btnClearSearch);
+        etSearch = findViewById(R.id.etSearch);
 
         bookingList = new ArrayList<>();
-        adapter = new BookingAdapter(this, bookingList);
+        filteredList = new ArrayList<>();
+        adapter = new BookingAdapter(this, filteredList);
         adapter.setOnBookingActionListener(this);
         lvBookings.setAdapter(adapter);
+
+        // Setup search
+        setupSearch();
 
         btnRefresh.setOnClickListener(v -> loadBookings());
 
         loadBookings();
+    }
+
+    private void setupSearch() {
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                filterBookings(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        btnClearSearch.setOnClickListener(v -> {
+            etSearch.setText("");
+            btnClearSearch.setVisibility(View.GONE);
+            filterBookings("");
+        });
+    }
+
+    private void filterBookings(String query) {
+        filteredList.clear();
+
+        if (query.isEmpty()) {
+            filteredList.addAll(bookingList);
+            btnClearSearch.setVisibility(View.GONE);
+        } else {
+            String lowerQuery = query.toLowerCase().trim();
+            for (Booking booking : bookingList) {
+                if (booking.venueName != null && booking.venueName.toLowerCase().contains(lowerQuery)) {
+                    filteredList.add(booking);
+                } else if (booking.venueAddress != null && booking.venueAddress.toLowerCase().contains(lowerQuery)) {
+                    filteredList.add(booking);
+                } else if (booking.bookingDate != null && booking.bookingDate.contains(query)) {
+                    filteredList.add(booking);
+                } else if (booking.status != null && booking.status.toLowerCase().contains(lowerQuery)) {
+                    filteredList.add(booking);
+                }
+            }
+            btnClearSearch.setVisibility(View.VISIBLE);
+        }
+
+        adapter.notifyDataSetChanged();
+
+        // Update no bookings message
+        if (filteredList.isEmpty()) {
+            if (bookingList.isEmpty()) {
+                tvNoBookings.setText("No bookings found");
+            } else {
+                tvNoBookings.setText("No matching bookings found");
+            }
+            tvNoBookings.setVisibility(View.VISIBLE);
+        } else {
+            tvNoBookings.setVisibility(View.GONE);
+        }
     }
 
     private void loadBookings() {
@@ -85,6 +154,7 @@ public class BookingHistoryActivity extends AppCompatActivity implements Booking
                     @Override
                     public void onDataChange(DataSnapshot snapshot) {
                         bookingList.clear();
+                        filteredList.clear();
 
                         for (DataSnapshot data : snapshot.getChildren()) {
                             Booking booking = data.getValue(Booking.class);
@@ -94,14 +164,21 @@ public class BookingHistoryActivity extends AppCompatActivity implements Booking
                             }
                         }
 
+                        // Copy all to filtered list
+                        filteredList.addAll(bookingList);
                         adapter.notifyDataSetChanged();
                         progressBar.setVisibility(View.GONE);
 
-                        if (bookingList.isEmpty()) {
+                        if (filteredList.isEmpty()) {
                             tvNoBookings.setVisibility(View.VISIBLE);
                             tvNoBookings.setText("No bookings found");
                         } else {
                             tvNoBookings.setVisibility(View.GONE);
+                        }
+
+                        // Clear search if no query
+                        if (etSearch.getText().toString().isEmpty()) {
+                            btnClearSearch.setVisibility(View.GONE);
                         }
                     }
 
