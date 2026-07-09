@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="#F5F5F5">
 
     <!-- Header -->
-
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="📍 SPORT VENUES NEARBY"
+        android:text="Find Sports Venues"
         android:textStyle="bold"
         android:textSize="22sp"
         android:textColor="#FFFFFF"
@@ -18,33 +18,208 @@
         android:padding="16dp"
         android:gravity="center"/>
 
-    <TextView
+    <!-- Map Legend -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#F5F5F5"
-        android:padding="10dp"
-        android:text="🔴 Football   🔵 Multi Sports      🟢 Badminton&#10;🟣 Futsal       🟠 Indoor Sports     🟣 Bowling"
-        android:textColor="#000000"
-        android:textSize="14sp"/>
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:background="#FFFFFF"
+        android:elevation="2dp"
+        android:gravity="center">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="📍 Nearby Sports Venue"
-        android:textStyle="bold"
-        android:textSize="18sp"
-        android:paddingStart="12dp"
-        android:paddingTop="10dp"
-        android:textColor="#009688"/>
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
 
-    <TextView
-        android:id="@+id/txtNearbyVenue"
+            <View
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="#F44336"
+                android:layout_marginEnd="4dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Football"
+                android:textSize="10sp"
+                android:layout_marginEnd="8dp"/>
+
+            <View
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="#4CAF50"
+                android:layout_marginEnd="4dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Badminton"
+                android:textSize="10sp"
+                android:layout_marginEnd="8dp"/>
+
+            <View
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="#9C27B0"
+                android:layout_marginEnd="4dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Futsal"
+                android:textSize="10sp"
+                android:layout_marginEnd="8dp"/>
+
+            <View
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="#00BCD4"
+                android:layout_marginEnd="4dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Multi Sports"
+                android:textSize="10sp"
+                android:layout_marginEnd="8dp"/>
+
+            <View
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="#E91E63"
+                android:layout_marginEnd="4dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Bowling"
+                android:textSize="10sp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Search Bar - Larger touch targets -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Loading nearby venues..."
-        android:textSize="15sp"
+        android:orientation="horizontal"
         android:padding="12dp"
-        android:background="#F5F5F5"/>
+        android:background="#FFFFFF"
+        android:elevation="2dp">
+
+        <!-- Search EditText - minimum height 48dp for touch target -->
+        <EditText
+            android:id="@+id/etSearchVenue"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:hint="Search for sports venues..."
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:background="#F5F5F5"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:textSize="16sp"
+            android:minHeight="48dp"/>
+
+        <!-- Clear button - larger touch target -->
+        <ImageView
+            android:id="@+id/ivClearSearch"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:padding="12dp"
+            android:layout_gravity="center_vertical"
+            android:visibility="gone"
+            android:contentDescription="Clear search"/>
+
+        <!-- Search button - larger touch target -->
+        <Button
+            android:id="@+id/btnSearch"
+            android:layout_width="80dp"
+            android:layout_height="52dp"
+            android:text="Search"
+            android:backgroundTint="#009688"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:minHeight="48dp"
+            android:textStyle="bold"/>
+    </LinearLayout>
+
+    <!-- Selected Venue -->
+    <TextView
+        android:id="@+id/tvSelectedVenue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Selected: No venue selected"
+        android:textSize="15sp"
+        android:textColor="#009688"
+        android:padding="14dp"
+        android:background="#E8F5E9"
+        android:visibility="gone"/>
+
+    <!-- Action Buttons - Larger touch targets -->
+    <LinearLayout
+        android:id="@+id/llActionButtons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:visibility="gone">
+
+        <!-- Navigate Button -->
+        <Button
+            android:id="@+id/btnNavigateSelected"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:text="Navigate"
+            android:backgroundTint="#2196F3"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:minHeight="48dp"
+            android:layout_marginEnd="4dp"/>
+
+        <!-- Book Button -->
+        <Button
+            android:id="@+id/btnBookSelected"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:text="Book Now"
+            android:backgroundTint="#FF9800"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:minHeight="48dp"
+            android:layout_marginStart="4dp"/>
+
+    </LinearLayout>
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_margin="12dp"
+        android:visibility="gone"/>
+
+    <!-- No Results -->
+    <TextView
+        android:id="@+id/tvNoResults"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No venues found"
+        android:textSize="15sp"
+        android:textColor="#666666"
+        android:gravity="center"
+        android:padding="16dp"
+        android:visibility="gone"/>
 
     <!-- Google Map -->
     <fragment
@@ -53,5 +228,15 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"/>
+
+    <!-- Search Results List - AT THE VERY BOTTOM -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSearchResults"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="250dp"
+        android:visibility="gone"
+        android:background="#FFFFFF"
+        android:elevation="8dp"/>
 
 </LinearLayout>

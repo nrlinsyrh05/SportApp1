@@ -46,6 +46,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         }
     }
 
+    // ============ ONLY ONE isExternalNotification METHOD ============
     private boolean isExternalNotification(String title) {
         if (title == null) return false;
         return title.contains("Reminder") ||
@@ -57,6 +58,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                 title.contains("Booking");
     }
 
+    // ============ ONLY ONE sendNotification METHOD ============
     private void sendNotification(String title, String body) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -68,6 +70,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
+        // Create notification channel for Android O and above
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
@@ -95,7 +98,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     @Override
     public void onNewToken(@NonNull String token) {
         super.onNewToken(token);
-        // Save token to Firebase for future notifications
         saveTokenToFirebase(token);
     }
 

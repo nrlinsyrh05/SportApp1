@@ -1,377 +1,903 @@
 package com.uitm.smartsportvenuefinder;
 
 import android.Manifest;
-import android.content.pm.PackageManager;
 import android.content.Intent;
-import android.net.Uri;
-import android.os.Bundle;
-
+import android.content.pm.PackageManager;
 import android.location.Location;
+import android.os.Bundle;
+import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
-
+import android.widget.Toast;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
-
-
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
-
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.libraries.places.api.Places;
+import com.google.android.libraries.places.api.model.AutocompleteSessionToken;
+import com.google.android.libraries.places.api.model.Place;
+import com.google.android.libraries.places.api.model.TypeFilter;
+import com.google.android.libraries.places.api.net.FetchPlaceRequest;
+import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest;
+import com.google.android.libraries.places.api.net.PlacesClient;
+import com.google.maps.android.PolyUtil;
 
-public class MapActivity extends AppCompatActivity implements OnMapReadyCallback {
+import org.json.JSONArray;
+import org.json.JSONObject;
 
-    private GoogleMap mMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class MapActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
+
+    // UI Components
+    private EditText etSearchVenue;
+    private Button btnSearch, btnBookSelected, btnNavigateSelected;
+    private RecyclerView rvSearchResults;
+    private ProgressBar progressBar;
+    private TextView tvNoResults, tvSelectedVenue;
+    private ImageView ivClearSearch;
+    private LinearLayout llActionButtons;
+
+    // Google Maps
+    private GoogleMap googleMap;
+    private SupportMapFragment mapFragment;
+
+    // Google Places
+    private PlacesClient placesClient;
+
+    // Location
     private FusedLocationProviderClient fusedLocationClient;
-    private LatLng currentLocation;
-    private TextView txtNearbyVenue;
+    private LatLng currentLatLng;
+    private boolean isLocationPermissionGranted = false;
+    private boolean isMapReady = false;
+
+    // Data
+    private List<Place> searchResults;
+    private VenueSearchAdapter adapter;
+    private Place selectedPlace;
+
+    // Constants
+    private static final int LOCATION_PERMISSION_REQUEST = 1001;
+    private static final String API_KEY = "AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
-        txtNearbyVenue = findViewById(R.id.txtNearbyVenue);
-        txtNearbyVenue.setText(
-                "1. UiTM Shah Alam Sports Complex\n" +
-                        "2. Frenzy Sports Arena\n" +
-                        "3. Section 6 Sports Complex"
-        );
+        // Initialize Google Places
+        if (!Places.isInitialized()) {
+            Places.initialize(getApplicationContext(), API_KEY);
+        }
+        placesClient = Places.createClient(this);
 
+        // Initialize location client
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
+        // Initialize views
+        initViews();
 
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    1001
-            );
+        // Setup listeners
+        setupListeners();
 
-        }
+        // Initialize map
+        mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
 
-        SupportMapFragment mapFragment =
-                (SupportMapFragment) getSupportFragmentManager()
-                        .findFragmentById(R.id.map);
+        // Check location permission and get location
+        checkLocationPermission();
+    }
 
-        if (mapFragment != null) {
-            mapFragment.getMapAsync(this);
+    private void initViews() {
+        etSearchVenue = findViewById(R.id.etSearchVenue);
+        btnSearch = findViewById(R.id.btnSearch);
+        btnBookSelected = findViewById(R.id.btnBookSelected);
+        btnNavigateSelected = findViewById(R.id.btnNavigateSelected);
+        rvSearchResults = findViewById(R.id.rvSearchResults);
+        progressBar = findViewById(R.id.progressBar);
+        tvNoResults = findViewById(R.id.tvNoResults);
+        tvSelectedVenue = findViewById(R.id.tvSelectedVenue);
+        ivClearSearch = findViewById(R.id.ivClearSearch);
+        llActionButtons = findViewById(R.id.llActionButtons);
+
+        searchResults = new ArrayList<>();
+        adapter = new VenueSearchAdapter(this, searchResults, venue -> {
+            selectedPlace = venue;
+            showSelectedVenue(venue);
+            moveMapToVenue(venue);
+            if (venue.getLatLng() != null) {
+                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(venue.getLatLng(), 17f));
+            }
+        });
+
+        rvSearchResults.setLayoutManager(new LinearLayoutManager(this));
+        rvSearchResults.setAdapter(adapter);
+        rvSearchResults.setVisibility(View.GONE);
+        llActionButtons.setVisibility(View.GONE);
+    }
+
+    private void setupListeners() {
+        btnSearch.setOnClickListener(v -> {
+            hideKeyboard();
+            searchVenues();
+        });
+
+        etSearchVenue.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                hideKeyboard();
+                searchVenues();
+                return true;
+            }
+            return false;
+        });
+
+        // BOOK button - opens booking form
+        btnBookSelected.setOnClickListener(v -> {
+            if (selectedPlace != null) {
+                proceedToBooking(selectedPlace);
+            } else {
+                Toast.makeText(this, "Please select a venue first", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // NAVIGATE button - launches built-in navigation
+        btnNavigateSelected.setOnClickListener(v -> {
+            if (selectedPlace != null) {
+                launchBuiltInNavigation(selectedPlace);
+            } else {
+                Toast.makeText(this, "Please select a venue first", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        ivClearSearch.setOnClickListener(v -> {
+            etSearchVenue.setText("");
+            searchResults.clear();
+            adapter.notifyDataSetChanged();
+            rvSearchResults.setVisibility(View.GONE);
+            tvNoResults.setVisibility(View.GONE);
+            tvSelectedVenue.setVisibility(View.GONE);
+            llActionButtons.setVisibility(View.GONE);
+            ivClearSearch.setVisibility(View.GONE);
+            selectedPlace = null;
+            if (googleMap != null) {
+                googleMap.clear();
+                if (currentLatLng != null) {
+                    googleMap.addMarker(new MarkerOptions()
+                            .position(currentLatLng)
+                            .title("Your Location")
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                }
+                addDemoMarkers();
+                if (currentLatLng != null) {
+                    googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+                }
+            }
+            hideKeyboard();
+        });
+
+        etSearchVenue.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                ivClearSearch.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
+    }
+
+    private void checkLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            isLocationPermissionGranted = true;
+            getCurrentLocation();
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION},
+                    LOCATION_PERMISSION_REQUEST);
         }
     }
 
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
+    private void getCurrentLocation() {
+        if (!isLocationPermissionGranted) {
+            checkLocationPermission();
+            return;
+        }
 
-        mMap = googleMap;
+        progressBar.setVisibility(View.VISIBLE);
 
-        mMap.setOnInfoWindowClickListener(marker -> {
+        fusedLocationClient.getLastLocation()
+                .addOnCompleteListener(this, task -> {
+                    progressBar.setVisibility(View.GONE);
 
-            Intent intent = new Intent(MapActivity.this, VenueDetailActivity.class);
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        Location location = task.getResult();
+                        currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
 
-            intent.putExtra("venueName", marker.getTitle());
-            intent.putExtra("sport", marker.getSnippet());
+                        if (googleMap != null && isMapReady) {
+                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+                            googleMap.addMarker(new MarkerOptions()
+                                    .position(currentLatLng)
+                                    .title("Your Location")
+                                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                            searchNearbyVenues();
+                        }
 
-            startActivity(intent);
+                        Toast.makeText(this, "Location found", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Unable to get location.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
 
-        });
+    private void searchVenues() {
+        String query = etSearchVenue.getText().toString().trim();
 
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED) {
+        if (query.isEmpty()) {
+            Toast.makeText(this, "Please enter a venue name", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-            mMap.setMyLocationEnabled(true);
+        hideKeyboard();
+        progressBar.setVisibility(View.VISIBLE);
+        rvSearchResults.setVisibility(View.GONE);
+        tvNoResults.setVisibility(View.GONE);
+        searchResults.clear();
 
-            moveToCurrentLocation();
+        AutocompleteSessionToken token = AutocompleteSessionToken.newInstance();
 
+        FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
+                .setQuery(query)
+                .setTypeFilter(TypeFilter.ESTABLISHMENT)
+                .setSessionToken(token)
+                .build();
 
+        placesClient.findAutocompletePredictions(request)
+                .addOnSuccessListener(response -> {
+                    progressBar.setVisibility(View.GONE);
+
+                    if (response.getAutocompletePredictions() != null &&
+                            !response.getAutocompletePredictions().isEmpty()) {
+
+                        for (com.google.android.libraries.places.api.model.AutocompletePrediction prediction :
+                                response.getAutocompletePredictions()) {
+                            fetchPlaceDetails(prediction.getPlaceId());
+                        }
+                    } else {
+                        tvNoResults.setVisibility(View.VISIBLE);
+                        tvNoResults.setText("No venues found. Try a different search.");
+                        if (googleMap != null) {
+                            googleMap.clear();
+                            if (currentLatLng != null) {
+                                googleMap.addMarker(new MarkerOptions()
+                                        .position(currentLatLng)
+                                        .title("Your Location")
+                                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                            }
+                            addDemoMarkers();
+                            if (currentLatLng != null) {
+                                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+                            }
+                        }
+                    }
+                })
+                .addOnFailureListener(exception -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(this, "Search failed: " + exception.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void fetchPlaceDetails(String placeId) {
+        List<Place.Field> fields = Arrays.asList(
+                Place.Field.ID,
+                Place.Field.NAME,
+                Place.Field.ADDRESS,
+                Place.Field.LAT_LNG,
+                Place.Field.TYPES,
+                Place.Field.RATING
+        );
+
+        FetchPlaceRequest request = FetchPlaceRequest.builder(placeId, fields).build();
+
+        placesClient.fetchPlace(request)
+                .addOnSuccessListener(response -> {
+                    Place place = response.getPlace();
+                    if (place != null && place.getLatLng() != null) {
+                        boolean isRelevant = true;
+
+                        if (isRelevant) {
+                            searchResults.add(place);
+                            adapter.notifyDataSetChanged();
+                            showVenuesOnMap(searchResults);
+                            rvSearchResults.setVisibility(View.VISIBLE);
+                            tvNoResults.setVisibility(View.GONE);
+                            zoomToFitMarkers(searchResults);
+                        }
+                    }
+                })
+                .addOnFailureListener(exception -> {
+                    // Silently fail for individual place fetch
+                });
+    }
+
+    private void searchNearbyVenues() {
+        if (currentLatLng == null) {
+            return;
+        }
+
+        progressBar.setVisibility(View.VISIBLE);
+        rvSearchResults.setVisibility(View.GONE);
+        tvNoResults.setVisibility(View.GONE);
+        searchResults.clear();
+
+        AutocompleteSessionToken token = AutocompleteSessionToken.newInstance();
+
+        FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
+                .setQuery("sports venue stadium court gym fitness")
+                .setTypeFilter(TypeFilter.ESTABLISHMENT)
+                .setSessionToken(token)
+                .build();
+
+        placesClient.findAutocompletePredictions(request)
+                .addOnSuccessListener(response -> {
+                    progressBar.setVisibility(View.GONE);
+
+                    if (response.getAutocompletePredictions() != null &&
+                            !response.getAutocompletePredictions().isEmpty()) {
+
+                        for (com.google.android.libraries.places.api.model.AutocompletePrediction prediction :
+                                response.getAutocompletePredictions()) {
+                            fetchPlaceDetails(prediction.getPlaceId());
+                        }
+
+                        if (searchResults.isEmpty()) {
+                            tvNoResults.setVisibility(View.VISIBLE);
+                            tvNoResults.setText("No nearby sports venues found");
+                            if (googleMap != null) {
+                                googleMap.clear();
+                                if (currentLatLng != null) {
+                                    googleMap.addMarker(new MarkerOptions()
+                                            .position(currentLatLng)
+                                            .title("Your Location")
+                                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                                }
+                                addDemoMarkers();
+                                if (currentLatLng != null) {
+                                    googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+                                }
+                            }
+                        }
+                    } else {
+                        tvNoResults.setVisibility(View.VISIBLE);
+                        tvNoResults.setText("No nearby sports venues found");
+                        if (googleMap != null) {
+                            googleMap.clear();
+                            if (currentLatLng != null) {
+                                googleMap.addMarker(new MarkerOptions()
+                                        .position(currentLatLng)
+                                        .title("Your Location")
+                                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                            }
+                            addDemoMarkers();
+                            if (currentLatLng != null) {
+                                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+                            }
+                        }
+                    }
+                })
+                .addOnFailureListener(exception -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(this, "Search failed: " + exception.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void showVenuesOnMap(List<Place> places) {
+        if (googleMap == null) return;
+
+        googleMap.clear();
+
+        if (currentLatLng != null) {
+            googleMap.addMarker(new MarkerOptions()
+                    .position(currentLatLng)
+                    .title("Your Location")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
         }
 
         addDemoMarkers();
 
-        mMap.setOnMarkerClickListener(marker -> {
+        if (places != null && !places.isEmpty()) {
+            for (Place place : places) {
+                if (place.getLatLng() != null) {
+                    String title = place.getName() != null ? place.getName() : "Venue";
+                    String snippet = place.getAddress() != null ? place.getAddress() : "";
 
-            marker.showInfoWindow();
+                    if (place.getRating() != null) {
+                        snippet += " Rating: " + place.getRating();
+                    }
 
-            return true;
+                    Marker marker = googleMap.addMarker(new MarkerOptions()
+                            .position(place.getLatLng())
+                            .title(title)
+                            .snippet(snippet)
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+                    marker.setTag(place);
+                }
+            }
+        }
 
+        if (currentLatLng != null) {
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+        }
+    }
+
+    private void zoomToFitMarkers(List<Place> places) {
+        if (places == null || places.isEmpty() || googleMap == null) return;
+
+        LatLngBounds.Builder builder = new LatLngBounds.Builder();
+
+        for (Place place : places) {
+            if (place.getLatLng() != null) {
+                builder.include(place.getLatLng());
+            }
+        }
+
+        if (currentLatLng != null) {
+            builder.include(currentLatLng);
+        }
+
+        LatLngBounds bounds = builder.build();
+        int padding = 100;
+        googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding));
+    }
+
+    private void showSelectedVenue(Place place) {
+        String name = place.getName() != null ? place.getName() : "Unknown Venue";
+        String address = place.getAddress() != null ? place.getAddress() : "";
+
+        tvSelectedVenue.setText("Selected: " + name);
+        tvSelectedVenue.setVisibility(View.VISIBLE);
+        llActionButtons.setVisibility(View.VISIBLE);
+        rvSearchResults.setVisibility(View.GONE);
+    }
+
+    private void moveMapToVenue(Place place) {
+        if (googleMap != null && place.getLatLng() != null) {
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(place.getLatLng(), 17f));
+        }
+    }
+
+    // ============ BUILT-IN NAVIGATION WITH ENCODED POLYLINE ============
+    private void launchBuiltInNavigation(Place place) {
+        if (currentLatLng == null) {
+            Toast.makeText(this, "Your location not available. Please enable GPS.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if (place.getLatLng() == null) {
+            Toast.makeText(this, "Venue location not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        progressBar.setVisibility(View.VISIBLE);
+
+        String originStr = currentLatLng.latitude + "," + currentLatLng.longitude;
+        String destStr = place.getLatLng().latitude + "," + place.getLatLng().longitude;
+        String venueName = place.getName() != null ? place.getName() : "Venue";
+
+        String url = "https://maps.googleapis.com/maps/api/directions/json?" +
+                "origin=" + originStr +
+                "&destination=" + destStr +
+                "&key=" + API_KEY +
+                "&mode=driving" +
+                "&language=en";
+
+        new Thread(() -> {
+            try {
+                java.net.URL requestUrl = new java.net.URL(url);
+                java.net.HttpURLConnection connection = (java.net.HttpURLConnection) requestUrl.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(10000);
+                connection.connect();
+
+                java.io.InputStream inputStream = connection.getInputStream();
+                java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(inputStream));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+                reader.close();
+
+                String finalResponse = response.toString();
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    parseDirectionsResponse(finalResponse, currentLatLng, place.getLatLng(), venueName);
+                });
+
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(MapActivity.this, "Failed to get directions: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
+    }
+
+    // ============ PARSE DIRECTIONS AND PASS ONLY ENCODED POLYLINE ============
+    private void parseDirectionsResponse(String response, LatLng origin, LatLng dest, String venueName) {
+        try {
+            JSONObject jsonObject = new JSONObject(response);
+            String status = jsonObject.getString("status");
+
+            if (status.equals("OK")) {
+                JSONArray routes = jsonObject.getJSONArray("routes");
+                if (routes.length() > 0) {
+                    JSONObject route = routes.getJSONObject(0);
+
+                    // Get overview polyline
+                    JSONObject overviewPolyline = route.getJSONObject("overview_polyline");
+                    String points = overviewPolyline.getString("points");
+
+                    // ✅ PASS ONLY THE ENCODED POLYLINE STRING (not the List)
+                    Intent intent = new Intent(MapActivity.this, NavigationActivity.class);
+                    intent.putExtra("startLocation", origin);
+                    intent.putExtra("destination", dest);
+                    intent.putExtra("destinationName", venueName);
+                    intent.putExtra("encodedPolyline", points);  // Pass as String
+                    startActivity(intent);
+
+                } else {
+                    Toast.makeText(this, "No route found", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                String errorMessage = getDirectionsErrorMessage(status);
+                Toast.makeText(this, "Directions error: " + errorMessage, Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error parsing directions: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private String getDirectionsErrorMessage(String status) {
+        switch (status) {
+            case "NOT_FOUND":
+                return "Origin or destination not found";
+            case "ZERO_RESULTS":
+                return "No route found between locations";
+            case "MAX_WAYPOINTS_EXCEEDED":
+                return "Too many waypoints";
+            case "INVALID_REQUEST":
+                return "Invalid request";
+            case "OVER_QUERY_LIMIT":
+                return "Query limit exceeded";
+            case "REQUEST_DENIED":
+                return "Request denied - check API key";
+            case "UNKNOWN_ERROR":
+                return "Unknown error occurred";
+            default:
+                return status;
+        }
+    }
+
+    // ============ BOOK BUTTON ============
+    private void proceedToBooking(Place place) {
+        Intent intent = new Intent(this, BookingActivity.class);
+        intent.putExtra("venueName", place.getName() != null ? place.getName() : "Venue");
+        intent.putExtra("venueAddress", place.getAddress() != null ? place.getAddress() : "");
+        intent.putExtra("venueId", place.getId());
+
+        if (place.getLatLng() != null) {
+            intent.putExtra("latitude", place.getLatLng().latitude);
+            intent.putExtra("longitude", place.getLatLng().longitude);
+        }
+
+        startActivity(intent);
+    }
+
+    // ============ DIALOG FOR DEMO MARKERS ============
+    private void showVenueDialog(Marker marker) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(marker.getTitle());
+        builder.setMessage(
+                "Sport: " + marker.getSnippet() +
+                        "\n\nWhat would you like to do?"
+        );
+
+        // NAVIGATE button
+        builder.setPositiveButton("Navigate", (dialog, which) -> {
+            LatLng position = marker.getPosition();
+            if (position != null && currentLatLng != null) {
+                // Create custom Place for demo marker
+                Place place = Place.builder()
+                        .setName(marker.getTitle())
+                        .setAddress(marker.getSnippet())
+                        .setLatLng(position)
+                        .build();
+                launchBuiltInNavigation(place);
+            } else {
+                Toast.makeText(this, "Location not available", Toast.LENGTH_SHORT).show();
+            }
         });
 
+        // BOOK button
+        builder.setNeutralButton("Book Now", (dialog, which) -> {
+            LatLng position = marker.getPosition();
+            if (position != null) {
+                Venue venue = new Venue();
+                venue.venueName = marker.getTitle();
+                venue.sportType = marker.getSnippet();
+                venue.latitude = position.latitude;
+                venue.longitude = position.longitude;
+                venue.address = marker.getSnippet();
 
+                Intent intent = new Intent(MapActivity.this, BookingActivity.class);
+                intent.putExtra("venueName", venue.venueName);
+                intent.putExtra("venueAddress", venue.address);
+                intent.putExtra("venueId", venue.venueName);
+                intent.putExtra("latitude", venue.latitude);
+                intent.putExtra("longitude", venue.longitude);
+                startActivity(intent);
+            }
+        });
+
+        builder.setNegativeButton("Close", null);
+        builder.show();
+    }
+
+    private void hideKeyboard() {
+        View view = this.getCurrentFocus();
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+        }
     }
 
     private void addDemoMarkers() {
-
-        // UiTM Shah Alam Sports Complex
         LatLng uitm = new LatLng(3.067411043253576, 101.49726815809952);
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(uitm)
                 .title("UiTM Shah Alam Sports Complex")
                 .snippet("Football")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
 
-        // Kompleks Sukan Panasonic
         LatLng panasonic = new LatLng(3.0568666090523804, 101.5479922622229);
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(panasonic)
                 .title("Kompleks Sukan Panasonic")
                 .snippet("Multi Sports")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
 
-        // Kompleks Sukan Shah Alam
         LatLng shahAlam = new LatLng(3.086741331783849, 101.51462971657962);
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(shahAlam)
                 .title("Kompleks Sukan Shah Alam")
                 .snippet("Football")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
 
-        // Setia Alam Badminton Arena
         LatLng setia = new LatLng(3.104788661771676, 101.47807245342857);
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(setia)
                 .title("Setia Alam Badminton Arena")
                 .snippet("Badminton")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
 
-        // Frenzy Sports Arena
         LatLng frenzy = new LatLng(3.0610784570454928, 101.4999115288357);
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(frenzy)
                 .title("Frenzy Sports Arena")
                 .snippet("Indoor Sports")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
 
-        // DO Arena Space U8
         LatLng doArena = new LatLng(3.113122919396162, 101.55394981055719);
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(doArena)
                 .title("DO Arena Space U8")
                 .snippet("Football / Futsal")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
-        // Wembley Futsal Arena
         LatLng wembley = new LatLng(3.047656504936154, 101.50392375342858);
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(wembley)
                 .title("Wembley Futsal Arena")
                 .snippet("Futsal")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET)));
 
-        // Shah Alam Badminton Centre
         LatLng badminton = new LatLng(3.065130664192046, 101.52661082459288);
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(badminton)
                 .title("Shah Alam Badminton Centre")
                 .snippet("Badminton")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
 
-        // Section 6 Sports Complex
         LatLng section6 = new LatLng(3.0834116060104346, 101.51041681665004);
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(section6)
                 .title("Section 6 Sports Complex")
                 .snippet("Multi Sports")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
 
-        // =======================================
-        // Digital Sports Arena i-City
-        // =======================================
         LatLng digital = new LatLng(3.065370429256171, 101.48219293691248);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(digital)
                 .title("Digital Sports Arena i-City")
                 .snippet("Indoor Sports")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
-
-        // =======================================
-        // Empire Sport Arena
-        // =======================================
         LatLng empire = new LatLng(3.0051846408202754, 101.50364056760135);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(empire)
                 .title("Empire Sport Arena")
                 .snippet("Futsal")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET)));
 
-
-        // =======================================
-        // Forum SBA
-        // =======================================
         LatLng forum = new LatLng(3.1141258819078765, 101.45248507368193);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(forum)
                 .title("Forum SBA")
                 .snippet("Badminton")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
 
-
-        // =======================================
-        // Radia Arena
-        // =======================================
         LatLng radia = new LatLng(3.101715336153319, 101.53638013372917);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(radia)
                 .title("Radia Arena")
                 .snippet("Football / Futsal")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
 
-
-        // =======================================
-        // FBSA by Nuova Sport Arena
-        // =======================================
         LatLng fbsa = new LatLng(3.0552554532685994, 101.48234900992914);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(fbsa)
                 .title("FBSA by Nuova Sport Arena")
                 .snippet("Badminton")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
 
-
-        // =======================================
-        // Yosin Kampung Subang Court
-        // =======================================
         LatLng yosin = new LatLng(3.14303389047075, 101.53435762527357);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(yosin)
                 .title("Yosin Kampung Subang Court")
                 .snippet("Badminton")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
 
-
-        // =======================================
-        // Arena Futsal Padang Jawa
-        // =======================================
         LatLng padangJawa = new LatLng(3.0517720996792552, 101.50009253401522);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(padangJawa)
                 .title("Arena Futsal Padang Jawa")
                 .snippet("Futsal")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET)));
 
-
-        // =======================================
-        // Bowl America i-City
-        // =======================================
         LatLng bowlAmerica = new LatLng(3.0653490022864562, 101.48226803876524);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(bowlAmerica)
                 .title("Bowl America i-City")
                 .snippet("Bowling")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA)));
 
-
-        // =======================================
-        // Alam Lanes AEON Shah Alam
-        // =======================================
         LatLng alamLanes = new LatLng(3.0776783405200088, 101.54935913691247);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(alamLanes)
                 .title("Alam Lanes AEON Shah Alam")
                 .snippet("Bowling")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA)));
 
-
-        // =======================================
-        // Wangsa Bowl Setia City Mall
-        // =======================================
         LatLng wangsa = new LatLng(3.110306434584387, 101.46076664855136);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(wangsa)
                 .title("Wangsa Bowl Setia City Mall")
                 .snippet("Bowling")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA)));
 
-
-        // =======================================
-        // Ole Ole Super Bowl
-        // =======================================
         LatLng oleole = new LatLng(3.0438448740119717, 101.51777790199579);
-
-        mMap.addMarker(new MarkerOptions()
+        googleMap.addMarker(new MarkerOptions()
                 .position(oleole)
                 .title("Ole Ole Super Bowl")
                 .snippet("Bowling")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA)));
 
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(uitm, 11.5f));
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(uitm, 11.5f));
     }
 
-    private void moveToCurrentLocation() {
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        this.googleMap = googleMap;
+        this.isMapReady = true;
+        this.googleMap.setOnMarkerClickListener(this);
+        this.googleMap.getUiSettings().setZoomControlsEnabled(true);
+        this.googleMap.getUiSettings().setMyLocationButtonEnabled(true);
+        this.googleMap.getUiSettings().setCompassEnabled(true);
+        this.googleMap.getUiSettings().setMapToolbarEnabled(true);
 
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            return;
+        if (isLocationPermissionGranted) {
+            try {
+                this.googleMap.setMyLocationEnabled(true);
+            } catch (SecurityException e) {
+                e.printStackTrace();
+            }
         }
 
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(location -> {
+        addDemoMarkers();
 
-                    if (location != null) {
-
-                        currentLocation = new LatLng(
-                                location.getLatitude(),
-                                location.getLongitude()
-                        );
-
-                        mMap.animateCamera(
-                                CameraUpdateFactory.newLatLngZoom(
-                                        currentLocation,
-                                        14f
-                                )
-                        );
-
-                    }
-
-                });
-
+        if (currentLatLng != null) {
+            this.googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f));
+            this.googleMap.addMarker(new MarkerOptions()
+                    .position(currentLatLng)
+                    .title("Your Location")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+        } else {
+            LatLng defaultLocation = new LatLng(3.1390, 101.6869);
+            this.googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 12f));
+        }
     }
-    private void showVenueDialog(com.google.android.gms.maps.model.Marker marker) {
 
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        if (marker.getTag() instanceof Place) {
+            Place place = (Place) marker.getTag();
+            selectedPlace = place;
+            showSelectedVenue(place);
+            marker.showInfoWindow();
+            return true;
+        } else if (marker.getTitle() != null && marker.getTitle().contains("Your Location")) {
+            Toast.makeText(this, "Your current location", Toast.LENGTH_SHORT).show();
+            return true;
+        } else {
+            showVenueDialog(marker);
+            return true;
+        }
+    }
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        builder.setTitle(marker.getTitle());
+        if (requestCode == LOCATION_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                isLocationPermissionGranted = true;
+                getCurrentLocation();
 
-        builder.setMessage(
-                "Sport : " + marker.getSnippet() +
-                        "\n\nDo you want to navigate to this venue?"
-        );
-
-        builder.setPositiveButton("Navigate", (dialog, which) -> {
-
-                    Intent intent = new Intent(MapActivity.this, VenueDetailActivity.class);
-
-                    intent.putExtra("venueName", marker.getTitle());
-                    intent.putExtra("sport", marker.getSnippet());
-
-                    startActivity(intent);
-
-                });
-        builder.setNegativeButton("Close", null);
-
-        builder.show();
-
-
-
+                if (googleMap != null) {
+                    try {
+                        googleMap.setMyLocationEnabled(true);
+                    } catch (SecurityException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                Toast.makeText(this, "Location permission denied. You can still search manually.",
+                        Toast.LENGTH_LONG).show();
+            }
+        }
     }
 }
