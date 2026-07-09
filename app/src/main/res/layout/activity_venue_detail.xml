@@ -1,70 +1,166 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#F5F5F5">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="16dp">
 
+        <!-- Header -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Venue Details"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#009688"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Venue Name -->
         <TextView
             android:id="@+id/txtVenueName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Venue Name"
             android:textSize="24sp"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:layout_marginBottom="16dp"/>
 
+        <!-- Sport -->
         <TextView
             android:id="@+id/txtSport"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Sport"
-            android:textSize="18sp"
-            android:layout_marginTop="16dp"/>
+            android:text="Sport: Football"
+            android:textSize="16sp"
+            android:textColor="#555555"
+            android:layout_marginBottom="8dp"/>
 
+        <!-- Address -->
         <TextView
             android:id="@+id/txtAddress"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Address"
-            android:textSize="18sp"
-            android:layout_marginTop="10dp"/>
+            android:text="Address: Shah Alam"
+            android:textSize="16sp"
+            android:textColor="#555555"
+            android:layout_marginBottom="8dp"/>
 
+        <!-- Phone -->
         <TextView
             android:id="@+id/txtPhone"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Phone"
-            android:textSize="18sp"
-            android:layout_marginTop="10dp"/>
+            android:text="Phone: 03-5510 1234"
+            android:textSize="16sp"
+            android:textColor="#555555"
+            android:layout_marginBottom="8dp"/>
 
+        <!-- Website -->
         <TextView
             android:id="@+id/txtWebsite"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Website"
-            android:textSize="18sp"
-            android:layout_marginTop="10dp"/>
+            android:text="Website: https://mbsa.gov.my"
+            android:textSize="16sp"
+            android:textColor="#009688"
+            android:layout_marginBottom="8dp"/>
 
+        <!-- Operating Hours -->
         <TextView
             android:id="@+id/txtOperatingHour"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Operating Hours"
-            android:textSize="18sp"
-            android:layout_marginTop="10dp"/>
+            android:text="Operating Hours: 8:00 AM - 10:00 PM"
+            android:textSize="16sp"
+            android:textColor="#555555"
+            android:layout_marginBottom="20dp"/>
 
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginVertical="12dp"/>
+
+        <!-- Book Now Button -->
+        <Button
+            android:id="@+id/btnBookNow"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="Book Now"
+            android:backgroundTint="#FF6F00"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp"/>
+
+        <!-- Contact Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Contact"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:layout_marginBottom="12dp"/>
+
+        <!-- Contact Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnCall"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="Call"
+                android:backgroundTint="#4CAF50"
+                android:textColor="#FFFFFF"
+                android:layout_marginEnd="4dp"/>
+
+            <Button
+                android:id="@+id/btnWhatsApp"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="WhatsApp"
+                android:backgroundTint="#25D366"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"/>
+
+            <Button
+                android:id="@+id/btnEmail"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="Email"
+                android:backgroundTint="#2196F3"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="4dp"/>
+
+        </LinearLayout>
+
+        <!-- Navigation Button -->
         <Button
             android:id="@+id/btnOpenMap"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:text="Open in Google Maps"
-            android:layout_marginTop="24dp"/>
+            android:backgroundTint="#009688"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="8dp"/>
 
     </LinearLayout>
 
