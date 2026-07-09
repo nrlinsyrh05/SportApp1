@@ -7,11 +7,13 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.gms.maps.model.LatLng;
 
 public class VenueDetailActivity extends AppCompatActivity {
 
     private TextView txtVenueName, txtSport, txtAddress, txtPhone, txtWebsite, txtOperatingHour;
-    private Button btnOpenMap, btnCall, btnWhatsApp, btnEmail, btnBookNow;
+    private Button btnNavigate, btnCall, btnWhatsApp, btnEmail, btnBookNow;
+    private double latitude = 0, longitude = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,7 +27,7 @@ public class VenueDetailActivity extends AppCompatActivity {
         txtPhone = findViewById(R.id.txtPhone);
         txtWebsite = findViewById(R.id.txtWebsite);
         txtOperatingHour = findViewById(R.id.txtOperatingHour);
-        btnOpenMap = findViewById(R.id.btnOpenMap);
+        btnNavigate = findViewById(R.id.btnNavigate);
         btnCall = findViewById(R.id.btnCall);
         btnWhatsApp = findViewById(R.id.btnWhatsApp);
         btnEmail = findViewById(R.id.btnEmail);
@@ -35,6 +37,20 @@ public class VenueDetailActivity extends AppCompatActivity {
         String venueName = getIntent().getStringExtra("venueName");
         String sport = getIntent().getStringExtra("sport");
         String address = getIntent().getStringExtra("address");
+
+        // Get latitude and longitude
+        String latStr = getIntent().getStringExtra("latitude");
+        String lngStr = getIntent().getStringExtra("longitude");
+
+        if (latStr != null && lngStr != null) {
+            try {
+                latitude = Double.parseDouble(latStr);
+                longitude = Double.parseDouble(lngStr);
+            } catch (NumberFormatException e) {
+                latitude = 0;
+                longitude = 0;
+            }
+        }
 
         if (venueName != null) {
             txtVenueName.setText(venueName);
@@ -47,28 +63,36 @@ public class VenueDetailActivity extends AppCompatActivity {
             txtAddress.setText("Address: N/A");
         }
 
+        // ============ NAVIGATE BUTTON - Opens NavigationActivity ============
+        btnNavigate.setOnClickListener(v -> {
+            if (venueName != null) {
+                // ✅ Create intent to open NavigationActivity
+                Intent intent = new Intent(VenueDetailActivity.this, NavigationActivity.class);
+
+                // Pass destination name
+                intent.putExtra("destinationName", venueName);
+
+                // Pass destination coordinates
+                if (latitude != 0 && longitude != 0) {
+                    LatLng destLatLng = new LatLng(latitude, longitude);
+                    intent.putExtra("destination", destLatLng);
+                }
+
+                // Pass encoded polyline (empty for now, NavigationActivity will handle it)
+                intent.putExtra("encodedPolyline", "");
+
+                startActivity(intent);
+            } else {
+                Toast.makeText(this, "No venue selected", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         // Book Now button
         btnBookNow.setOnClickListener(v -> {
             Intent intent = new Intent(VenueDetailActivity.this, BookingActivity.class);
             intent.putExtra("venueName", venueName);
             intent.putExtra("venueAddress", address);
             startActivity(intent);
-        });
-
-        // Open Map button
-        btnOpenMap.setOnClickListener(v -> {
-            if (venueName != null) {
-                String uri = "geo:0,0?q=" + venueName + ", Shah Alam";
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
-                intent.setPackage("com.google.android.apps.maps");
-                if (intent.resolveActivity(getPackageManager()) != null) {
-                    startActivity(intent);
-                } else {
-                    Toast.makeText(this, "Google Maps not installed", Toast.LENGTH_SHORT).show();
-                }
-            } else {
-                Toast.makeText(this, "No venue selected", Toast.LENGTH_SHORT).show();
-            }
         });
 
         // Call button

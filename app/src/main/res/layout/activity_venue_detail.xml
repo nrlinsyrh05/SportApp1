@@ -19,7 +19,7 @@
             android:text="Venue Details"
             android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="#009688"
+            android:textColor="@color/primary_color"
             android:layout_marginBottom="16dp"/>
 
         <!-- Venue Name -->
@@ -70,7 +70,7 @@
             android:layout_height="wrap_content"
             android:text="Website: https://mbsa.gov.my"
             android:textSize="16sp"
-            android:textColor="#009688"
+            android:textColor="@color/primary_color"
             android:layout_marginBottom="8dp"/>
 
         <!-- Operating Hours -->
@@ -90,17 +90,40 @@
             android:background="#E0E0E0"
             android:layout_marginVertical="12dp"/>
 
-        <!-- Book Now Button -->
-        <Button
-            android:id="@+id/btnBookNow"
+        <!-- Action Buttons Row - DARKER SHADES -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:text="Book Now"
-            android:backgroundTint="#FF6F00"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="12dp"/>
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <Button
+                android:id="@+id/btnNavigate"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:text="Navigate"
+                android:backgroundTint="@color/primary_dark"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="4dp"
+                app:cornerRadius="8dp"/>
+
+            <Button
+                android:id="@+id/btnBookNow"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:text="Book Now"
+                android:backgroundTint="@color/primary_dark"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginStart="4dp"
+                app:cornerRadius="8dp"/>
+
+        </LinearLayout>
 
         <!-- Contact Section -->
         <TextView
@@ -112,7 +135,7 @@
             android:textColor="#333333"
             android:layout_marginBottom="12dp"/>
 
-        <!-- Contact Buttons -->
+        <!-- Contact Buttons - LIGHTER SHADES -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -125,9 +148,12 @@
                 android:layout_height="48dp"
                 android:layout_weight="1"
                 android:text="Call"
-                android:backgroundTint="#4CAF50"
+                android:backgroundTint="#80CBC4"
                 android:textColor="#FFFFFF"
-                android:layout_marginEnd="4dp"/>
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="4dp"
+                app:cornerRadius="8dp"/>
 
             <Button
                 android:id="@+id/btnWhatsApp"
@@ -135,10 +161,13 @@
                 android:layout_height="48dp"
                 android:layout_weight="1"
                 android:text="WhatsApp"
-                android:backgroundTint="#25D366"
+                android:backgroundTint="#80CBC4"
                 android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
                 android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"/>
+                android:layout_marginEnd="4dp"
+                app:cornerRadius="8dp"/>
 
             <Button
                 android:id="@+id/btnEmail"
@@ -146,21 +175,14 @@
                 android:layout_height="48dp"
                 android:layout_weight="1"
                 android:text="Email"
-                android:backgroundTint="#2196F3"
+                android:backgroundTint="#80CBC4"
                 android:textColor="#FFFFFF"
-                android:layout_marginStart="4dp"/>
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginStart="4dp"
+                app:cornerRadius="8dp"/>
 
         </LinearLayout>
-
-        <!-- Open Map Button -->
-        <Button
-            android:id="@+id/btnOpenMap"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Navigate to Venue"
-            android:backgroundTint="#009688"
-            android:textColor="#FFFFFF"
-            android:layout_marginTop="8dp"/>
 
     </LinearLayout>
 

@@ -91,7 +91,7 @@ public class EditBookingActivity extends AppCompatActivity {
 
     private void setupListeners() {
         btnSearchVenue.setOnClickListener(v -> {
-            Intent intent = new Intent(EditBookingActivity.this, VenueSearchActivity.class);
+            Intent intent = new Intent(EditBookingActivity.this, MapActivity.class);
             startActivityForResult(intent, VENUE_SEARCH_REQUEST);
         });
 
