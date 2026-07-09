@@ -75,6 +75,9 @@
         <activity
             android:name=".ContactAdminActivity"
             android:exported="false" />
+        <activity
+            android:name=".VenueDetailActivity"
+            android:exported="false" />
 
         <!-- ============ SERVICES ============ -->
 

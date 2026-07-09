@@ -53,7 +53,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
     // UI Components
     private EditText etSearchVenue;
-    private Button btnSearch, btnBookSelected, btnNavigateSelected;
+    private Button btnSearch, btnDetailsSelected, btnNavigateSelected;
     private RecyclerView rvSearchResults;
     private ProgressBar progressBar;
     private TextView tvNoResults, tvSelectedVenue;
@@ -114,7 +114,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private void initViews() {
         etSearchVenue = findViewById(R.id.etSearchVenue);
         btnSearch = findViewById(R.id.btnSearch);
-        btnBookSelected = findViewById(R.id.btnBookSelected);
+        btnDetailsSelected = findViewById(R.id.btnDetailsSelected);
         btnNavigateSelected = findViewById(R.id.btnNavigateSelected);
         rvSearchResults = findViewById(R.id.rvSearchResults);
         progressBar = findViewById(R.id.progressBar);
@@ -154,10 +154,10 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             return false;
         });
 
-        // BOOK button - opens booking form
-        btnBookSelected.setOnClickListener(v -> {
+        // DETAILS button - opens VenueDetailActivity
+        btnDetailsSelected.setOnClickListener(v -> {
             if (selectedPlace != null) {
-                proceedToBooking(selectedPlace);
+                showVenueDetails(selectedPlace);
             } else {
                 Toast.makeText(this, "Please select a venue first", Toast.LENGTH_SHORT).show();
             }
@@ -380,7 +380,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
                         if (searchResults.isEmpty()) {
                             tvNoResults.setVisibility(View.VISIBLE);
-                            tvNoResults.setText("No nearby sports venues found");
+                            tvNoResults.setText("Nearby sports venues");
                             if (googleMap != null) {
                                 googleMap.clear();
                                 if (currentLatLng != null) {
@@ -397,7 +397,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                         }
                     } else {
                         tvNoResults.setVisibility(View.VISIBLE);
-                        tvNoResults.setText("No nearby sports venues found");
+                        tvNoResults.setText("Nearby sports venues");
                         if (googleMap != null) {
                             googleMap.clear();
                             if (currentLatLng != null) {
@@ -495,7 +495,22 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
     }
 
-    // ============ BUILT-IN NAVIGATION WITH ENCODED POLYLINE ============
+    // ============ VIEW DETAILS ============
+    private void showVenueDetails(Place place) {
+        Intent intent = new Intent(MapActivity.this, VenueDetailActivity.class);
+        intent.putExtra("venueName", place.getName() != null ? place.getName() : "Venue");
+        intent.putExtra("venueAddress", place.getAddress() != null ? place.getAddress() : "");
+        intent.putExtra("sport", "Sports Venue");
+
+        if (place.getLatLng() != null) {
+            intent.putExtra("latitude", String.valueOf(place.getLatLng().latitude));
+            intent.putExtra("longitude", String.valueOf(place.getLatLng().longitude));
+        }
+
+        startActivity(intent);
+    }
+
+    // ============ LAUNCH NAVIGATION ============
     private void launchBuiltInNavigation(Place place) {
         if (currentLatLng == null) {
             Toast.makeText(this, "Your location not available. Please enable GPS.", Toast.LENGTH_LONG).show();
@@ -554,7 +569,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }).start();
     }
 
-    // ============ PARSE DIRECTIONS AND PASS ONLY ENCODED POLYLINE ============
     private void parseDirectionsResponse(String response, LatLng origin, LatLng dest, String venueName) {
         try {
             JSONObject jsonObject = new JSONObject(response);
@@ -565,16 +579,14 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                 if (routes.length() > 0) {
                     JSONObject route = routes.getJSONObject(0);
 
-                    // Get overview polyline
                     JSONObject overviewPolyline = route.getJSONObject("overview_polyline");
                     String points = overviewPolyline.getString("points");
 
-                    // ✅ PASS ONLY THE ENCODED POLYLINE STRING (not the List)
                     Intent intent = new Intent(MapActivity.this, NavigationActivity.class);
                     intent.putExtra("startLocation", origin);
                     intent.putExtra("destination", dest);
                     intent.putExtra("destinationName", venueName);
-                    intent.putExtra("encodedPolyline", points);  // Pass as String
+                    intent.putExtra("encodedPolyline", points);
                     startActivity(intent);
 
                 } else {
@@ -592,38 +604,15 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
     private String getDirectionsErrorMessage(String status) {
         switch (status) {
-            case "NOT_FOUND":
-                return "Origin or destination not found";
-            case "ZERO_RESULTS":
-                return "No route found between locations";
-            case "MAX_WAYPOINTS_EXCEEDED":
-                return "Too many waypoints";
-            case "INVALID_REQUEST":
-                return "Invalid request";
-            case "OVER_QUERY_LIMIT":
-                return "Query limit exceeded";
-            case "REQUEST_DENIED":
-                return "Request denied - check API key";
-            case "UNKNOWN_ERROR":
-                return "Unknown error occurred";
-            default:
-                return status;
+            case "NOT_FOUND": return "Origin or destination not found";
+            case "ZERO_RESULTS": return "No route found between locations";
+            case "MAX_WAYPOINTS_EXCEEDED": return "Too many waypoints";
+            case "INVALID_REQUEST": return "Invalid request";
+            case "OVER_QUERY_LIMIT": return "Query limit exceeded";
+            case "REQUEST_DENIED": return "Request denied - check API key";
+            case "UNKNOWN_ERROR": return "Unknown error occurred";
+            default: return status;
         }
-    }
-
-    // ============ BOOK BUTTON ============
-    private void proceedToBooking(Place place) {
-        Intent intent = new Intent(this, BookingActivity.class);
-        intent.putExtra("venueName", place.getName() != null ? place.getName() : "Venue");
-        intent.putExtra("venueAddress", place.getAddress() != null ? place.getAddress() : "");
-        intent.putExtra("venueId", place.getId());
-
-        if (place.getLatLng() != null) {
-            intent.putExtra("latitude", place.getLatLng().latitude);
-            intent.putExtra("longitude", place.getLatLng().longitude);
-        }
-
-        startActivity(intent);
     }
 
     // ============ DIALOG FOR DEMO MARKERS ============
@@ -635,11 +624,19 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                         "\n\nWhat would you like to do?"
         );
 
+        // VIEW DETAILS button
+        builder.setPositiveButton("View Details", (dialog, which) -> {
+            Intent intent = new Intent(MapActivity.this, VenueDetailActivity.class);
+            intent.putExtra("venueName", marker.getTitle());
+            intent.putExtra("sport", marker.getSnippet());
+            intent.putExtra("address", marker.getSnippet());
+            startActivity(intent);
+        });
+
         // NAVIGATE button
-        builder.setPositiveButton("Navigate", (dialog, which) -> {
+        builder.setNeutralButton("Navigate", (dialog, which) -> {
             LatLng position = marker.getPosition();
             if (position != null && currentLatLng != null) {
-                // Create custom Place for demo marker
                 Place place = Place.builder()
                         .setName(marker.getTitle())
                         .setAddress(marker.getSnippet())
@@ -648,27 +645,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                 launchBuiltInNavigation(place);
             } else {
                 Toast.makeText(this, "Location not available", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        // BOOK button
-        builder.setNeutralButton("Book Now", (dialog, which) -> {
-            LatLng position = marker.getPosition();
-            if (position != null) {
-                Venue venue = new Venue();
-                venue.venueName = marker.getTitle();
-                venue.sportType = marker.getSnippet();
-                venue.latitude = position.latitude;
-                venue.longitude = position.longitude;
-                venue.address = marker.getSnippet();
-
-                Intent intent = new Intent(MapActivity.this, BookingActivity.class);
-                intent.putExtra("venueName", venue.venueName);
-                intent.putExtra("venueAddress", venue.address);
-                intent.putExtra("venueId", venue.venueName);
-                intent.putExtra("latitude", venue.latitude);
-                intent.putExtra("longitude", venue.longitude);
-                startActivity(intent);
             }
         });
 
@@ -747,83 +723,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                 .title("Section 6 Sports Complex")
                 .snippet("Multi Sports")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
-
-        LatLng digital = new LatLng(3.065370429256171, 101.48219293691248);
-        googleMap.addMarker(new MarkerOptions()
-                .position(digital)
-                .title("Digital Sports Arena i-City")
-                .snippet("Indoor Sports")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
-
-        LatLng empire = new LatLng(3.0051846408202754, 101.50364056760135);
-        googleMap.addMarker(new MarkerOptions()
-                .position(empire)
-                .title("Empire Sport Arena")
-                .snippet("Futsal")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET)));
-
-        LatLng forum = new LatLng(3.1141258819078765, 101.45248507368193);
-        googleMap.addMarker(new MarkerOptions()
-                .position(forum)
-                .title("Forum SBA")
-                .snippet("Badminton")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
-
-        LatLng radia = new LatLng(3.101715336153319, 101.53638013372917);
-        googleMap.addMarker(new MarkerOptions()
-                .position(radia)
-                .title("Radia Arena")
-                .snippet("Football / Futsal")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
-
-        LatLng fbsa = new LatLng(3.0552554532685994, 101.48234900992914);
-        googleMap.addMarker(new MarkerOptions()
-                .position(fbsa)
-                .title("FBSA by Nuova Sport Arena")
-                .snippet("Badminton")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
-
-        LatLng yosin = new LatLng(3.14303389047075, 101.53435762527357);
-        googleMap.addMarker(new MarkerOptions()
-                .position(yosin)
-                .title("Yosin Kampung Subang Court")
-                .snippet("Badminton")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
-
-        LatLng padangJawa = new LatLng(3.0517720996792552, 101.50009253401522);
-        googleMap.addMarker(new MarkerOptions()
-                .position(padangJawa)
-                .title("Arena Futsal Padang Jawa")
-                .snippet("Futsal")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET)));
-
-        LatLng bowlAmerica = new LatLng(3.0653490022864562, 101.48226803876524);
-        googleMap.addMarker(new MarkerOptions()
-                .position(bowlAmerica)
-                .title("Bowl America i-City")
-                .snippet("Bowling")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA)));
-
-        LatLng alamLanes = new LatLng(3.0776783405200088, 101.54935913691247);
-        googleMap.addMarker(new MarkerOptions()
-                .position(alamLanes)
-                .title("Alam Lanes AEON Shah Alam")
-                .snippet("Bowling")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA)));
-
-        LatLng wangsa = new LatLng(3.110306434584387, 101.46076664855136);
-        googleMap.addMarker(new MarkerOptions()
-                .position(wangsa)
-                .title("Wangsa Bowl Setia City Mall")
-                .snippet("Bowling")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA)));
-
-        LatLng oleole = new LatLng(3.0438448740119717, 101.51777790199579);
-        googleMap.addMarker(new MarkerOptions()
-                .position(oleole)
-                .title("Ole Ole Super Bowl")
-                .snippet("Bowling")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA)));
 
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(uitm, 11.5f));
     }

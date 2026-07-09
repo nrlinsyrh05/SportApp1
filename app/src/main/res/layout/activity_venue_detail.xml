@@ -152,12 +152,12 @@
 
         </LinearLayout>
 
-        <!-- Navigation Button -->
+        <!-- Open Map Button -->
         <Button
             android:id="@+id/btnOpenMap"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:text="Open in Google Maps"
+            android:text="Navigate to Venue"
             android:backgroundTint="#009688"
             android:textColor="#FFFFFF"
             android:layout_marginTop="8dp"/>

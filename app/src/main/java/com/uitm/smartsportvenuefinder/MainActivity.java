@@ -6,8 +6,6 @@ import android.util.Log;
 import android.widget.Button;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.work.PeriodicWorkRequest;
-import androidx.work.WorkManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -16,11 +14,10 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-import java.util.concurrent.TimeUnit;
-
 public class MainActivity extends AppCompatActivity {
 
-    private Button btnSearchVenue, btnMap, btnBookingHistory, btnProfile, btnLogout, btnQuickBook, btnContactAdmin;
+    // REMOVED: btnSearchVenue
+    private Button btnMap, btnBookingHistory, btnProfile, btnLogout, btnQuickBook, btnContactAdmin;
     private TextView tvWelcome;
     private static final String TAG = "MainActivity";
 
@@ -29,8 +26,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Initialize views
-        btnSearchVenue = findViewById(R.id.btnSearchVenue);
+        // Initialize views - REMOVED btnSearchVenue
         btnMap = findViewById(R.id.btnMap);
         btnBookingHistory = findViewById(R.id.btnBookingHistory);
         btnProfile = findViewById(R.id.btnProfile);
@@ -42,14 +38,7 @@ public class MainActivity extends AppCompatActivity {
         // Load user info
         loadUserInfo();
 
-        // Start reminder service
-        startReminderService();
-
-        // Button click listeners
-        btnSearchVenue.setOnClickListener(v -> {
-            startActivity(new Intent(MainActivity.this, VenueSearchActivity.class));
-        });
-
+        // Button click listeners - REMOVED btnSearchVenue listener
         btnMap.setOnClickListener(v -> {
             startActivity(new Intent(MainActivity.this, MapActivity.class));
         });
@@ -77,23 +66,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void startReminderService() {
-        // Check if user is logged in
-        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-            return;
-        }
-
-        // Schedule periodic work to check reminders every 30 minutes
-        PeriodicWorkRequest reminderWork = new PeriodicWorkRequest.Builder(
-                ReminderService.class,
-                30, TimeUnit.MINUTES)
-                .build();
-
-        WorkManager.getInstance(this).enqueue(reminderWork);
-
-        Log.d(TAG, "Reminder service started");
-    }
-
     private void loadUserInfo() {
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
 
@@ -108,23 +80,23 @@ public class MainActivity extends AppCompatActivity {
                         String name = snapshot.child("name").getValue(String.class);
 
                         if (name != null && !name.isEmpty()) {
-                            tvWelcome.setText("Welcome back, " + name + "!");
+                            tvWelcome.setText("👋 Welcome back, " + name + "!");
                             return;
                         }
                     }
 
                     String displayName = currentUser.getDisplayName();
                     if (displayName != null && !displayName.isEmpty()) {
-                        tvWelcome.setText("Welcome back, " + displayName + "!");
+                        tvWelcome.setText("👋 Welcome back, " + displayName + "!");
                         return;
                     }
 
                     String email = currentUser.getEmail();
                     if (email != null && !email.isEmpty()) {
                         String userName = email.split("@")[0];
-                        tvWelcome.setText("Welcome back, " + userName + "!");
+                        tvWelcome.setText("👋 Welcome back, " + userName + "!");
                     } else {
-                        tvWelcome.setText("Welcome back!");
+                        tvWelcome.setText("👋 Welcome back!");
                     }
                 }
 
@@ -132,21 +104,14 @@ public class MainActivity extends AppCompatActivity {
                 public void onCancelled(DatabaseError error) {
                     String displayName = currentUser.getDisplayName();
                     if (displayName != null && !displayName.isEmpty()) {
-                        tvWelcome.setText("Welcome back, " + displayName + "!");
+                        tvWelcome.setText("👋 Welcome back, " + displayName + "!");
                     } else {
-                        tvWelcome.setText("Welcome back!");
+                        tvWelcome.setText("👋 Welcome back!");
                     }
                 }
             });
         } else {
-            tvWelcome.setText("Welcome!");
+            tvWelcome.setText("👋 Welcome!");
         }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        // Cancel work if needed (optional)
-        // WorkManager.getInstance(this).cancelAllWork();
     }
 }
