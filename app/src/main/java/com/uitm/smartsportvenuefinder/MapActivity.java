@@ -380,7 +380,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
                         if (searchResults.isEmpty()) {
                             tvNoResults.setVisibility(View.VISIBLE);
-                            tvNoResults.setText("No nearby sports venues found");
+                            tvNoResults.setText("Nearby search venues");
                             if (googleMap != null) {
                                 googleMap.clear();
                                 if (currentLatLng != null) {
@@ -397,7 +397,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                         }
                     } else {
                         tvNoResults.setVisibility(View.VISIBLE);
-                        tvNoResults.setText("No nearby sports venues found");
+                        tvNoResults.setText("Nearby sports venues");
                         if (googleMap != null) {
                             googleMap.clear();
                             if (currentLatLng != null) {
