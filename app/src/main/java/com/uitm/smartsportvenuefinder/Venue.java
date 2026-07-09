@@ -1,7 +1,15 @@
 package com.uitm.smartsportvenuefinder;
 
 public class Venue {
-    public String venueId, venueName, sportType, address, price, imageUrl;
+    public String venueId;
+    public String venueName;
+    public String sportType;
+    public String address;
+    public String phone;
+    public String website;
+    public String operatingHour;
+    public String price;
+    public String imageUrl;
     public double latitude, longitude;
 
     public Venue() {}

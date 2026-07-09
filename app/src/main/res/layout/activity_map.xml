@@ -18,8 +18,35 @@
         android:padding="16dp"
         android:gravity="center"/>
 
-    <!-- Google Map -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#F5F5F5"
+        android:padding="10dp"
+        android:text="🔴 Football   🔵 Multi Sports      🟢 Badminton&#10;🟣 Futsal       🟠 Indoor Sports     🟣 Bowling"
+        android:textColor="#000000"
+        android:textSize="14sp"/>
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="📍 Nearby Sports Venue"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:textColor="#009688"/>
+
+    <TextView
+        android:id="@+id/txtNearbyVenue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Loading nearby venues..."
+        android:textSize="15sp"
+        android:padding="12dp"
+        android:background="#F5F5F5"/>
+
+    <!-- Google Map -->
     <fragment
         android:id="@+id/map"
         android:name="com.google.android.gms.maps.SupportMapFragment"
