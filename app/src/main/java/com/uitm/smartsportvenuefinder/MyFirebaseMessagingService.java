@@ -66,6 +66,31 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                 PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
         );
 
+        // Only for EXTERNAL events (reminders, admin approval, messages)
+        if (isExternalNotification(title)) {
+            sendNotification(title, body);
+        }
+    }
+
+    private boolean isExternalNotification(String title) {
+        if (title == null) return false;
+        // Only show notifications for external events
+        return title.contains("Reminder") ||
+                title.contains("reminder") ||
+                title.contains("Admin") ||
+                title.contains("Approved") ||
+                title.contains("Message") ||
+                title.contains("Update");
+    }
+
+    private void sendNotification(String title, String body) {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                this, 0, intent,
+                PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
+        );
+
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
