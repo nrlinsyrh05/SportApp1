@@ -18,6 +18,7 @@ public class Booking {
     public String venueAddress;
     public String severity;
     public String imageUrl;
+    public boolean reminderSent;  // Track if reminder was sent
 
     public Booking() {
         // Default constructor required for Firebase
@@ -35,6 +36,7 @@ public class Booking {
         this.pax = pax != null ? pax : 1;
         this.timestamp = System.currentTimeMillis();
         this.severity = "Casual";
+        this.reminderSent = false;
     }
 
     // Getters and Setters
@@ -72,4 +74,6 @@ public class Booking {
     public void setSeverity(String severity) { this.severity = severity; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public boolean isReminderSent() { return reminderSent; }
+    public void setReminderSent(boolean reminderSent) { this.reminderSent = reminderSent; }
 }

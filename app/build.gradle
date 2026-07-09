@@ -46,6 +46,9 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging'
 
 
+    // For background tasks (WorkManager)
+    implementation "androidx.work:work-runtime:2.8.1"
+
     // Google Places API
     implementation 'com.google.android.libraries.places:places:3.3.0'
 

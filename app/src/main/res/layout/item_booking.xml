@@ -51,15 +51,6 @@
             android:textColor="@android:color/black"
             android:layout_marginBottom="4dp"/>
 
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Status: Pending"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="#FF9800"
-            android:layout_marginBottom="8dp"/>
 
         <Button
             android:id="@+id/btnCancel"

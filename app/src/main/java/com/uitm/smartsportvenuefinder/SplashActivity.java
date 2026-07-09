@@ -13,14 +13,10 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        // Delay for splash screen effect
         new Handler().postDelayed(() -> {
-            // Check if user is already logged in
             if (FirebaseAuth.getInstance().getCurrentUser() != null) {
-                // User is logged in, go to MainActivity
                 startActivity(new Intent(SplashActivity.this, MainActivity.class));
             } else {
-                // User is not logged in, go to LoginActivity
                 startActivity(new Intent(SplashActivity.this, LoginActivity.class));
             }
             finish();
