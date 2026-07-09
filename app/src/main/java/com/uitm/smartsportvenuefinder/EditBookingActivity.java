@@ -1,9 +1,8 @@
 package com.uitm.smartsportvenuefinder;
 
-import android.Manifest;
+import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.location.Location;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -13,48 +12,39 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.android.libraries.places.api.Places;
-import com.google.android.libraries.places.api.model.Place;
-import com.google.android.libraries.places.widget.Autocomplete;
-import com.google.android.libraries.places.widget.AutocompleteActivity;
-import com.google.android.libraries.places.widget.model.AutocompleteActivityMode;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Calendar;
 import java.util.Locale;
 
 public class EditBookingActivity extends AppCompatActivity {
 
     // UI Components
-    private EditText etDate, etTime, etPax;
-    private TextView tvVenueName, tvVenueAddress, tvLocation;
-    private Button btnSearchLocation, btnGetGps, btnUpdateBooking, btnCancel;
+    private EditText etPax;
+    private TextView tvVenueName, tvVenueAddress, tvDate, tvTime;
+    private Button btnSearchVenue, btnPickDate, btnPickTime, btnUpdateBooking, btnCancel;
     private View progressOverlay;
 
     // Firebase
     private DatabaseReference mDatabase;
 
-    // Location
-    private FusedLocationProviderClient fusedLocationClient;
-    private double latitude = 0, longitude = 0;
     private String venueName = "", venueAddress = "", placeId = "";
-
-    // Booking to edit
-    private Booking currentBooking;
     private String bookingId;
+    private String currentDate = "", currentTime = "";
+    private int currentPax = 1;
 
-    // Constants
-    private static final int LOCATION_PERMISSION_REQUEST = 1001;
-    private static final int PLACE_AUTOCOMPLETE_REQUEST = 1002;
-    private static final String API_KEY = "AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI";
+    private Calendar selectedDate = Calendar.getInstance();
+    private Calendar selectedTime = Calendar.getInstance();
+    private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+    private SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+
+    private static final int VENUE_SEARCH_REQUEST = 1002;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,200 +54,207 @@ public class EditBookingActivity extends AppCompatActivity {
         // Initialize Firebase
         mDatabase = FirebaseDatabase.getInstance().getReference();
 
-        // Initialize Places
-        if (!Places.isInitialized()) {
-            Places.initialize(getApplicationContext(), API_KEY);
-        }
-
-        // Initialize location client
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
         // Initialize views
         initViews();
         setupListeners();
 
-        // Get booking data from intent
-        getBookingData();
+        // Get booking ID from intent
+        bookingId = getIntent().getStringExtra("bookingId");
+
+        if (bookingId != null) {
+            loadBookingData();
+        } else {
+            Toast.makeText(this, "Booking not found", Toast.LENGTH_SHORT).show();
+            finish();
+        }
     }
 
     private void initViews() {
-        etDate = findViewById(R.id.etDate);
-        etTime = findViewById(R.id.etTime);
-        etPax = findViewById(R.id.etPax);
         tvVenueName = findViewById(R.id.tvVenueName);
         tvVenueAddress = findViewById(R.id.tvVenueAddress);
-        tvLocation = findViewById(R.id.tvLocation);
-        btnSearchLocation = findViewById(R.id.btnSearchLocation);
-        btnGetGps = findViewById(R.id.btnGetGps);
+        tvDate = findViewById(R.id.tvDate);
+        tvTime = findViewById(R.id.tvTime);
+        etPax = findViewById(R.id.etPax);
+        btnSearchVenue = findViewById(R.id.btnSearchVenue);
+        btnPickDate = findViewById(R.id.btnPickDate);
+        btnPickTime = findViewById(R.id.btnPickTime);
         btnUpdateBooking = findViewById(R.id.btnUpdateBooking);
         btnCancel = findViewById(R.id.btnCancel);
         progressOverlay = findViewById(R.id.progressOverlay);
+
+        tvVenueName.setText("Loading...");
+        tvVenueAddress.setText("");
+        tvDate.setText("Loading...");
+        tvTime.setText("Loading...");
+        etPax.setText("1");
     }
 
     private void setupListeners() {
-        btnSearchLocation.setOnClickListener(v -> openPlaceAutocomplete());
-        btnGetGps.setOnClickListener(v -> getCurrentLocation());
+        btnSearchVenue.setOnClickListener(v -> {
+            Intent intent = new Intent(EditBookingActivity.this, VenueSearchActivity.class);
+            startActivityForResult(intent, VENUE_SEARCH_REQUEST);
+        });
+
+        btnPickDate.setOnClickListener(v -> showDatePickerDialog());
+        btnPickTime.setOnClickListener(v -> showTimePickerDialog());
+
         btnUpdateBooking.setOnClickListener(v -> updateBooking());
         btnCancel.setOnClickListener(v -> finish());
+
+        tvDate.setOnClickListener(v -> showDatePickerDialog());
+        tvTime.setOnClickListener(v -> showTimePickerDialog());
     }
 
-    private void getBookingData() {
-        // Get booking data from intent
-        bookingId = getIntent().getStringExtra("bookingId");
-        String venueNameExtra = getIntent().getStringExtra("venueName");
-        String venueAddressExtra = getIntent().getStringExtra("venueAddress");
-        String dateExtra = getIntent().getStringExtra("bookingDate");
-        String timeExtra = getIntent().getStringExtra("bookingTime");
-        int paxExtra = getIntent().getIntExtra("pax", 1);
-        double latExtra = getIntent().getDoubleExtra("latitude", 0);
-        double lngExtra = getIntent().getDoubleExtra("longitude", 0);
-        String placeIdExtra = getIntent().getStringExtra("placeId");
-
-        // Pre-fill the form with existing data
-        venueName = venueNameExtra != null ? venueNameExtra : "";
-        venueAddress = venueAddressExtra != null ? venueAddressExtra : "";
-        latitude = latExtra;
-        longitude = lngExtra;
-        placeId = placeIdExtra != null ? placeIdExtra : "";
-
-        tvVenueName.setText(venueName);
-        tvVenueAddress.setText(venueAddress);
-
-        if (latitude != 0 && longitude != 0) {
-            tvLocation.setText("📍 " + String.format("%.6f", latitude) + ", " + String.format("%.6f", longitude));
-        } else {
-            tvLocation.setText("📍 No location set");
-        }
-
-        etDate.setText(dateExtra != null ? dateExtra : "");
-        etTime.setText(timeExtra != null ? timeExtra : "");
-        etPax.setText(String.valueOf(paxExtra));
-
-        // Create booking object for reference
-        currentBooking = new Booking();
-        currentBooking.setBookingId(bookingId);
-        currentBooking.setVenueName(venueName);
-        currentBooking.setVenueAddress(venueAddress);
-        currentBooking.setBookingDate(dateExtra);
-        currentBooking.setBookingTime(timeExtra);
-        currentBooking.setPax(paxExtra);
-        currentBooking.setLatitude(latExtra);
-        currentBooking.setLongitude(lngExtra);
-        currentBooking.setVenueId(placeId);
-    }
-
-    private void openPlaceAutocomplete() {
-        List<Place.Field> fields = Arrays.asList(
-                Place.Field.ID,
-                Place.Field.NAME,
-                Place.Field.ADDRESS,
-                Place.Field.LAT_LNG
-        );
-
-        Intent intent = new Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
-                .build(this);
-        startActivityForResult(intent, PLACE_AUTOCOMPLETE_REQUEST);
-    }
-
-    private void getCurrentLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST);
-            return;
-        }
-
+    private void loadBookingData() {
         progressOverlay.setVisibility(View.VISIBLE);
 
-        fusedLocationClient.getLastLocation()
-                .addOnCompleteListener(this, new OnCompleteListener<Location>() {
+        mDatabase.child("bookings").child(bookingId)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
-                    public void onComplete(@NonNull Task<Location> task) {
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
                         progressOverlay.setVisibility(View.GONE);
 
-                        if (task.isSuccessful() && task.getResult() != null) {
-                            Location location = task.getResult();
-                            latitude = location.getLatitude();
-                            longitude = location.getLongitude();
+                        if (snapshot.exists()) {
+                            Booking booking = snapshot.getValue(Booking.class);
+                            if (booking != null) {
+                                // Get data
+                                venueName = booking.getVenueName() != null ? booking.getVenueName() : "";
+                                venueAddress = booking.getVenueAddress() != null ? booking.getVenueAddress() : "";
+                                placeId = booking.getVenueId() != null ? booking.getVenueId() : "";
+                                currentDate = booking.getBookingDate() != null ? booking.getBookingDate() : "";
+                                currentTime = booking.getBookingTime() != null ? booking.getBookingTime() : "";
+                                currentPax = booking.getPax() != null ? booking.getPax() : 1;
 
-                            venueName = "Current Location";
-                            venueAddress = String.format("%.6f, %.6f", latitude, longitude);
-                            tvVenueName.setText(venueName);
-                            tvVenueAddress.setText(venueAddress);
-                            tvLocation.setText("📍 GPS: " + venueAddress);
+                                // Set data to views
+                                tvVenueName.setText(venueName);
+                                tvVenueAddress.setText(venueAddress);
 
-                            Toast.makeText(EditBookingActivity.this, "✅ GPS location updated", Toast.LENGTH_SHORT).show();
+                                // Set date and time
+                                if (!currentDate.isEmpty()) {
+                                    tvDate.setText(currentDate);
+                                    // Parse date to Calendar
+                                    try {
+                                        selectedDate.setTime(dateFormat.parse(currentDate));
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+
+                                if (!currentTime.isEmpty()) {
+                                    tvTime.setText(currentTime);
+                                    // Parse time to Calendar
+                                    try {
+                                        selectedTime.setTime(timeFormat.parse(currentTime));
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+
+                                etPax.setText(String.valueOf(currentPax));
+
+                            } else {
+                                Toast.makeText(EditBookingActivity.this, "Booking data not found", Toast.LENGTH_SHORT).show();
+                                finish();
+                            }
                         } else {
-                            Toast.makeText(EditBookingActivity.this, "❌ Unable to get location", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(EditBookingActivity.this, "Booking does not exist", Toast.LENGTH_SHORT).show();
+                            finish();
                         }
                     }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        progressOverlay.setVisibility(View.GONE);
+                        Toast.makeText(EditBookingActivity.this,
+                                "Failed to load: " + error.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
                 });
+    }
+
+    private void showDatePickerDialog() {
+        DatePickerDialog datePicker = new DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> {
+                    selectedDate.set(year, month, dayOfMonth);
+                    updateDateDisplay();
+                },
+                selectedDate.get(Calendar.YEAR),
+                selectedDate.get(Calendar.MONTH),
+                selectedDate.get(Calendar.DAY_OF_MONTH)
+        );
+        datePicker.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+        datePicker.show();
+    }
+
+    private void showTimePickerDialog() {
+        TimePickerDialog timePicker = new TimePickerDialog(
+                this,
+                (view, hourOfDay, minute) -> {
+                    selectedTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                    selectedTime.set(Calendar.MINUTE, minute);
+                    updateTimeDisplay();
+                },
+                selectedTime.get(Calendar.HOUR_OF_DAY),
+                selectedTime.get(Calendar.MINUTE),
+                false
+        );
+        timePicker.show();
+    }
+
+    private void updateDateDisplay() {
+        tvDate.setText(dateFormat.format(selectedDate.getTime()));
+    }
+
+    private void updateTimeDisplay() {
+        tvTime.setText(timeFormat.format(selectedTime.getTime()));
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode == PLACE_AUTOCOMPLETE_REQUEST) {
-            if (resultCode == RESULT_OK && data != null) {
-                Place place = Autocomplete.getPlaceFromIntent(data);
-                if (place != null) {
-                    venueName = place.getName() != null ? place.getName() : "Unknown Venue";
-                    venueAddress = place.getAddress() != null ? place.getAddress() : "";
-                    placeId = place.getId() != null ? place.getId() : "";
+        if (requestCode == VENUE_SEARCH_REQUEST && resultCode == RESULT_OK && data != null) {
+            venueName = data.getStringExtra("venueName");
+            venueAddress = data.getStringExtra("venueAddress");
+            placeId = data.getStringExtra("venueId");
 
-                    if (place.getLatLng() != null) {
-                        latitude = place.getLatLng().latitude;
-                        longitude = place.getLatLng().longitude;
-                    }
+            tvVenueName.setText(venueName);
+            tvVenueAddress.setText(venueAddress);
 
-                    tvVenueName.setText(venueName);
-                    tvVenueAddress.setText(venueAddress);
-                    tvLocation.setText("📍 " + venueAddress);
-
-                    Toast.makeText(this, "✅ " + venueName + " selected", Toast.LENGTH_SHORT).show();
-                }
-            } else if (resultCode == AutocompleteActivity.RESULT_ERROR) {
-                Toast.makeText(this, "❌ Place selection failed", Toast.LENGTH_SHORT).show();
-            }
+            Toast.makeText(this, "Venue selected: " + venueName, Toast.LENGTH_SHORT).show();
         }
     }
 
     private void updateBooking() {
         // Get input values
-        String date = etDate.getText().toString().trim();
-        String time = etTime.getText().toString().trim();
+        String date = tvDate.getText().toString().trim();
+        String time = tvTime.getText().toString().trim();
         String paxStr = etPax.getText().toString().trim();
 
         // Validate
         if (venueName.isEmpty() || venueName.equals("No venue selected")) {
-            Toast.makeText(this, "⚠️ Please select a venue", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please select a venue", Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (date.isEmpty()) {
-            etDate.setError("Required");
+            Toast.makeText(this, "Please select a date", Toast.LENGTH_LONG).show();
             return;
         }
+
         if (time.isEmpty()) {
-            etTime.setError("Required");
-            return;
-        }
-        if (paxStr.isEmpty()) {
-            etPax.setError("Required");
+            Toast.makeText(this, "Please select a time", Toast.LENGTH_LONG).show();
             return;
         }
 
         int pax;
         try {
             pax = Integer.parseInt(paxStr);
-            if (pax <= 0) {
-                etPax.setError("Must be at least 1");
-                return;
-            }
+            if (pax <= 0) pax = 1;
         } catch (NumberFormatException e) {
-            etPax.setError("Invalid number");
-            return;
+            pax = 1;
         }
 
         // Check if user is logged in
@@ -279,11 +276,9 @@ public class EditBookingActivity extends AppCompatActivity {
         bookingRef.child("bookingDate").setValue(date);
         bookingRef.child("bookingTime").setValue(time);
         bookingRef.child("pax").setValue(pax);
-        bookingRef.child("latitude").setValue(latitude);
-        bookingRef.child("longitude").setValue(longitude);
         bookingRef.child("venueId").setValue(placeId);
 
-        // Add completion listener to the last operation
+        // Add completion listener
         bookingRef.child("pax").setValue(pax)
                 .addOnCompleteListener(task -> {
                     progressOverlay.setVisibility(View.GONE);
@@ -291,26 +286,14 @@ public class EditBookingActivity extends AppCompatActivity {
 
                     if (task.isSuccessful()) {
                         Toast.makeText(EditBookingActivity.this,
-                                "✅ Booking Updated!",
+                                "Booking Updated!",
                                 Toast.LENGTH_LONG).show();
                         finish();
                     } else {
                         Toast.makeText(EditBookingActivity.this,
-                                "❌ Update failed: " + task.getException().getMessage(),
+                                "Update failed: " + task.getException().getMessage(),
                                 Toast.LENGTH_SHORT).show();
                     }
                 });
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == LOCATION_PERMISSION_REQUEST && grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            getCurrentLocation();
-        } else {
-            Toast.makeText(this, "⚠️ Location permission required", Toast.LENGTH_SHORT).show();
-        }
     }
 }

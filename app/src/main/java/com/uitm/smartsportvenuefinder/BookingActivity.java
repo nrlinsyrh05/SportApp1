@@ -1,11 +1,8 @@
 package com.uitm.smartsportvenuefinder;
 
-import android.Manifest;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.location.Location;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -15,9 +12,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -31,14 +25,12 @@ import java.util.Locale;
 public class BookingActivity extends AppCompatActivity {
 
     private EditText etPax;
-    private TextView tvVenueName, tvVenueAddress, tvLocation, tvDate, tvTime;
-    private Button btnSearchVenue, btnGetGps, btnConfirmBooking, btnCancel, btnPickDate, btnPickTime;
+    private TextView tvVenueName, tvVenueAddress, tvDate, tvTime;
+    private Button btnSearchVenue, btnConfirmBooking, btnCancel, btnPickDate, btnPickTime;
 
     private DatabaseReference mDatabase;
     private FirebaseAuth mAuth;
-    private FusedLocationProviderClient fusedLocationClient;
 
-    private double latitude = 0, longitude = 0;
     private String venueName = "", venueAddress = "", placeId = "";
 
     private Calendar selectedDate = Calendar.getInstance();
@@ -46,7 +38,6 @@ public class BookingActivity extends AppCompatActivity {
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
     private SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.getDefault());
 
-    private static final int LOCATION_PERMISSION_REQUEST = 1001;
     private static final int VENUE_SEARCH_REQUEST = 1002;
 
     @Override
@@ -59,27 +50,21 @@ public class BookingActivity extends AppCompatActivity {
         mDatabase = FirebaseDatabase.getInstance().getReference();
         mAuth = FirebaseAuth.getInstance();
 
-        // Initialize location
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
         // Initialize views
         tvVenueName = findViewById(R.id.tvVenueName);
         tvVenueAddress = findViewById(R.id.tvVenueAddress);
-        tvLocation = findViewById(R.id.tvLocation);
         tvDate = findViewById(R.id.tvDate);
         tvTime = findViewById(R.id.tvTime);
         etPax = findViewById(R.id.etPax);
         btnSearchVenue = findViewById(R.id.btnSearchVenue);
-        btnGetGps = findViewById(R.id.btnGetGps);
         btnPickDate = findViewById(R.id.btnPickDate);
         btnPickTime = findViewById(R.id.btnPickTime);
         btnConfirmBooking = findViewById(R.id.btnConfirmBooking);
         btnCancel = findViewById(R.id.btnCancel);
 
-        // Set default values - removed emojis
+        // Set default values
         tvVenueName.setText("No venue selected");
         tvVenueAddress.setText("");
-        tvLocation.setText("Tap 'Search' to find a venue");
         etPax.setText("1");
         updateDateDisplay();
         updateTimeDisplay();
@@ -90,7 +75,6 @@ public class BookingActivity extends AppCompatActivity {
             startActivityForResult(intent, VENUE_SEARCH_REQUEST);
         });
 
-        btnGetGps.setOnClickListener(v -> getCurrentLocation());
         btnPickDate.setOnClickListener(v -> showDatePickerDialog());
         btnPickTime.setOnClickListener(v -> showTimePickerDialog());
         btnConfirmBooking.setOnClickListener(v -> createBooking());
@@ -99,17 +83,14 @@ public class BookingActivity extends AppCompatActivity {
         tvDate.setOnClickListener(v -> showDatePickerDialog());
         tvTime.setOnClickListener(v -> showTimePickerDialog());
 
-        // Check for incoming venue data
+        // Check for incoming venue data from search
         if (getIntent().hasExtra("venueName")) {
             venueName = getIntent().getStringExtra("venueName");
             venueAddress = getIntent().getStringExtra("venueAddress");
             placeId = getIntent().getStringExtra("venueId");
-            latitude = getIntent().getDoubleExtra("latitude", 0);
-            longitude = getIntent().getDoubleExtra("longitude", 0);
 
             tvVenueName.setText(venueName);
             tvVenueAddress.setText(venueAddress);
-            tvLocation.setText(venueAddress);
             Toast.makeText(this, "Venue loaded: " + venueName, Toast.LENGTH_SHORT).show();
         }
     }
@@ -152,36 +133,6 @@ public class BookingActivity extends AppCompatActivity {
         tvTime.setText(timeFormat.format(selectedTime.getTime()));
     }
 
-    private void getCurrentLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST);
-            return;
-        }
-
-        Toast.makeText(this, "Getting location...", Toast.LENGTH_SHORT).show();
-
-        fusedLocationClient.getLastLocation()
-                .addOnCompleteListener(this, task -> {
-                    if (task.isSuccessful() && task.getResult() != null) {
-                        Location location = task.getResult();
-                        latitude = location.getLatitude();
-                        longitude = location.getLongitude();
-
-                        venueName = "Current Location";
-                        venueAddress = String.format("%.6f, %.6f", latitude, longitude);
-                        tvVenueName.setText(venueName);
-                        tvVenueAddress.setText(venueAddress);
-                        tvLocation.setText("GPS: " + venueAddress);
-
-                        Toast.makeText(BookingActivity.this, "GPS location set", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(BookingActivity.this, "Unable to get location", Toast.LENGTH_SHORT).show();
-                    }
-                });
-    }
-
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -190,12 +141,9 @@ public class BookingActivity extends AppCompatActivity {
             venueName = data.getStringExtra("venueName");
             venueAddress = data.getStringExtra("venueAddress");
             placeId = data.getStringExtra("venueId");
-            latitude = data.getDoubleExtra("latitude", 0);
-            longitude = data.getDoubleExtra("longitude", 0);
 
             tvVenueName.setText(venueName);
             tvVenueAddress.setText(venueAddress);
-            tvLocation.setText(venueAddress);
 
             Toast.makeText(this, "Venue selected: " + venueName, Toast.LENGTH_SHORT).show();
         }
@@ -261,8 +209,6 @@ public class BookingActivity extends AppCompatActivity {
         booking.setPax(pax);
         booking.setStatus("Pending");
         booking.setTimestamp(System.currentTimeMillis());
-        booking.setLatitude(latitude);
-        booking.setLongitude(longitude);
         booking.setUserName(currentUser.getDisplayName() != null ?
                 currentUser.getDisplayName() : "User");
         booking.setUserEmail(currentUser.getEmail() != null ?
@@ -273,11 +219,10 @@ public class BookingActivity extends AppCompatActivity {
 
         Toast.makeText(this, "Saving booking...", Toast.LENGTH_SHORT).show();
 
-        // Save to Firebase - USING TOAST instead of Notification
+        // Save to Firebase
         mDatabase.child("bookings").child(bookingId).setValue(booking)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
-                        // Toast for internal action (booking confirmed)
                         Toast.makeText(BookingActivity.this,
                                 "Booking Confirmed! " + finalVenueName + " - " + finalPax + " people",
                                 Toast.LENGTH_LONG).show();
@@ -290,17 +235,5 @@ public class BookingActivity extends AppCompatActivity {
                                 Toast.LENGTH_LONG).show();
                     }
                 });
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == LOCATION_PERMISSION_REQUEST && grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            getCurrentLocation();
-        } else {
-            Toast.makeText(this, "Location permission required", Toast.LENGTH_SHORT).show();
-        }
     }
 }

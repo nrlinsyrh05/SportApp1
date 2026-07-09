@@ -8,8 +8,8 @@ import android.content.Intent;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -21,7 +21,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     private static final String CHANNEL_NAME = "Sport Venue Reminders";
 
     @Override
-    public void onMessageReceived(RemoteMessage remoteMessage) {
+    public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
         super.onMessageReceived(remoteMessage);
 
         // Check if message has notification payload
@@ -36,10 +36,9 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         }
 
         // Check if message has data payload
-        if (remoteMessage.getData().size() > 0) {
+        if (!remoteMessage.getData().isEmpty()) {
             String title = remoteMessage.getData().get("title");
             String body = remoteMessage.getData().get("message");
-            String type = remoteMessage.getData().get("type");
 
             if (title != null && body != null) {
                 sendNotification(title, body);
@@ -61,31 +60,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     private void sendNotification(String title, String body) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(
-                this, 0, intent,
-                PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
-        );
 
-        // Only for EXTERNAL events (reminders, admin approval, messages)
-        if (isExternalNotification(title)) {
-            sendNotification(title, body);
-        }
-    }
-
-    private boolean isExternalNotification(String title) {
-        if (title == null) return false;
-        // Only show notifications for external events
-        return title.contains("Reminder") ||
-                title.contains("reminder") ||
-                title.contains("Admin") ||
-                title.contains("Approved") ||
-                title.contains("Message") ||
-                title.contains("Update");
-    }
-
-    private void sendNotification(String title, String body) {
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this, 0, intent,
                 PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
@@ -118,7 +93,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     }
 
     @Override
-    public void onNewToken(String token) {
+    public void onNewToken(@NonNull String token) {
         super.onNewToken(token);
         // Save token to Firebase for future notifications
         saveTokenToFirebase(token);

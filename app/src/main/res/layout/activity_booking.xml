@@ -26,14 +26,14 @@
                 android:textColor="#009688"
                 android:layout_marginBottom="20dp"/>
 
-            <!-- Venue Selection Section -->
+            <!-- Venue Selection -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="📍 Select Venue"
+                android:text="Select Venue"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="@color/quantum_black_100"
+                android:textColor="#333333"
                 android:layout_marginBottom="8dp"/>
 
             <TextView
@@ -53,47 +53,18 @@
                 android:text=""
                 android:textSize="14sp"
                 android:textColor="#666666"
-                android:layout_marginBottom="8dp"/>
-
-            <TextView
-                android:id="@+id/tvLocation"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="📍 Tap 'Search' to find a venue or 'GPS' for current location"
-                android:textSize="13sp"
-                android:textColor="#888888"
                 android:layout_marginBottom="12dp"/>
 
-            <!-- Search & GPS Buttons -->
-            <LinearLayout
+            <!-- Search Venue Button -->
+            <Button
+                android:id="@+id/btnSearchVenue"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
-
-                <Button
-                    android:id="@+id/btnSearchVenue"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:text="🔍 Search Venue"
-                    android:backgroundTint="#2196F3"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:layout_marginEnd="8dp"/>
-
-                <Button
-                    android:id="@+id/btnGetGps"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:text="📍 GPS"
-                    android:backgroundTint="#4CAF50"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:layout_marginStart="8dp"/>
-
-            </LinearLayout>
+                android:layout_height="48dp"
+                android:text="Search Venue"
+                android:backgroundTint="#2196F3"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:layout_marginBottom="16dp"/>
 
             <!-- Divider -->
             <View
@@ -106,7 +77,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="📅 Date And Time"
+                android:text="Date and Time"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="#333333"
@@ -124,14 +95,16 @@
                     android:layout_width="0dp"
                     android:layout_height="56dp"
                     android:layout_weight="1"
-                    android:text="📅 Select Date"
+                    android:text="Select Date"
                     android:textSize="16sp"
                     android:textColor="#333333"
                     android:gravity="center_vertical|start"
                     android:paddingStart="16dp"
                     android:layout_marginEnd="8dp"
                     android:clickable="true"
-                    android:focusable="true"/>
+                    android:focusable="true"
+                    android:background="#FFFFFF"
+                    android:elevation="2dp"/>
 
                 <Button
                     android:id="@+id/btnPickDate"
@@ -158,14 +131,16 @@
                     android:layout_width="0dp"
                     android:layout_height="56dp"
                     android:layout_weight="1"
-                    android:text="🕐 Select Time"
+                    android:text="Select Time"
                     android:textSize="16sp"
                     android:textColor="#333333"
                     android:gravity="center_vertical|start"
                     android:paddingStart="16dp"
                     android:layout_marginEnd="8dp"
                     android:clickable="true"
-                    android:focusable="true"/>
+                    android:focusable="true"
+                    android:background="#FFFFFF"
+                    android:elevation="2dp"/>
 
                 <Button
                     android:id="@+id/btnPickTime"
@@ -191,7 +166,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="👤 Number of People"
+                android:text="Number of People"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="#333333"
@@ -209,7 +184,9 @@
                     android:layout_height="wrap_content"
                     android:hint="Enter number of people"
                     android:inputType="number"
-                    android:textSize="16sp"/>
+                    android:textSize="16sp"
+                    android:text="1"/>
+
             </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Confirm & Cancel Buttons -->
@@ -224,7 +201,7 @@
                     android:layout_width="0dp"
                     android:layout_height="56dp"
                     android:layout_weight="1"
-                    android:text="Book"
+                    android:text="Confirm Booking"
                     android:backgroundTint="#009688"
                     android:textColor="#FFFFFF"
                     android:textSize="16sp"
