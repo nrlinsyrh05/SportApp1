@@ -625,7 +625,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         );
 
         // VIEW DETAILS button
-        builder.setPositiveButton("View Details", (dialog, which) -> {
+        builder.setPositiveButton("Book", (dialog, which) -> {
             Intent intent = new Intent(MapActivity.this, VenueDetailActivity.class);
             intent.putExtra("venueName", marker.getTitle());
             intent.putExtra("sport", marker.getSnippet());

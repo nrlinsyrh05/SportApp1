@@ -27,7 +27,6 @@
             android:name="com.google.android.libraries.places.PLACES_API_KEY"
             android:value="AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI" />
 
-
         <!-- ============ ACTIVITIES ============ -->
 
         <!-- Splash Screen (Launcher) -->
@@ -90,11 +89,8 @@
             </intent-filter>
         </service>
 
-        <!-- Reminder Service -->
-        <service
-            android:name=".ReminderService"
-            android:exported="false"
-            android:permission="android.permission.BIND_JOB_SERVICE" />
+        <!-- Reminder Service - FIXED: Worker doesn't need service declaration -->
+        <!-- WorkManager workers don't need to be declared in manifest -->
 
     </application>
 

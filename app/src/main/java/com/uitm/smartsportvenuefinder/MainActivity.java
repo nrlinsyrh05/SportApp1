@@ -6,6 +6,8 @@ import android.util.Log;
 import android.widget.Button;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -13,6 +15,8 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -38,6 +42,9 @@ public class MainActivity extends AppCompatActivity {
         // Load user info
         loadUserInfo();
 
+        // Start reminder service
+        startReminderService();
+
         // Button click listeners - REMOVED btnSearchVenue listener
         btnMap.setOnClickListener(v -> {
             startActivity(new Intent(MainActivity.this, MapActivity.class));
@@ -60,10 +67,43 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btnLogout.setOnClickListener(v -> {
+            // Cancel reminder service on logout
+            WorkManager.getInstance(this).cancelAllWork();
+
             FirebaseAuth.getInstance().signOut();
             startActivity(new Intent(MainActivity.this, LoginActivity.class));
             finish();
         });
+    }
+
+    /**
+     * Start the reminder service to check for upcoming bookings
+     */
+    private void startReminderService() {
+        try {
+            // Check if user is logged in
+            if (FirebaseAuth.getInstance().getCurrentUser() == null) {
+                Log.d(TAG, "User not logged in, skipping reminder service");
+                return;
+            }
+
+            // Cancel existing work to avoid duplicates
+            WorkManager.getInstance(this).cancelAllWork();
+
+            // Schedule periodic work to check reminders every 30 minutes
+            PeriodicWorkRequest reminderWork = new PeriodicWorkRequest.Builder(
+                    ReminderService.class,
+                    30, TimeUnit.MINUTES)
+                    .addTag("booking_reminders")
+                    .build();
+
+            WorkManager.getInstance(this).enqueue(reminderWork);
+
+            Log.d(TAG, "Reminder service started successfully");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting reminder service: " + e.getMessage());
+        }
     }
 
     private void loadUserInfo() {
@@ -113,5 +153,21 @@ public class MainActivity extends AppCompatActivity {
         } else {
             tvWelcome.setText("👋 Welcome!");
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresh reminder service when returning to activity
+        if (FirebaseAuth.getInstance().getCurrentUser() != null) {
+            startReminderService();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Note: Don't cancel work here as it should continue running in background
+        // Only cancel on logout
     }
 }

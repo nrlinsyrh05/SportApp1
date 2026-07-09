@@ -107,7 +107,7 @@
         <EditText
             android:id="@+id/etSearchVenue"
             android:layout_width="0dp"
-            android:layout_height="52dp"
+            android:layout_height="42dp"
             android:layout_weight="1"
             android:hint="Search for sports venues..."
             android:paddingStart="16dp"
@@ -115,7 +115,7 @@
             android:background="#F5F5F5"
             android:imeOptions="actionSearch"
             android:inputType="text"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:minHeight="48dp"/>
 
         <ImageView
@@ -130,12 +130,12 @@
 
         <Button
             android:id="@+id/btnSearch"
-            android:layout_width="80dp"
+            android:layout_width="100dp"
             android:layout_height="52dp"
             android:text="Search"
             android:backgroundTint="#009688"
             android:textColor="#FFFFFF"
-            android:textSize="15sp"
+            android:textSize="11sp"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
             android:minHeight="48dp"
@@ -230,10 +230,10 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvSearchResults"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:maxHeight="250dp"
-        android:visibility="gone"
+        android:layout_height="match_parent"
         android:background="#FFFFFF"
-        android:elevation="8dp"/>
+        android:elevation="8dp"
+        android:maxHeight="250dp"
+        android:visibility="gone" />
 
 </LinearLayout>

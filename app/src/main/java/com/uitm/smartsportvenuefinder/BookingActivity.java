@@ -4,6 +4,7 @@ import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -12,6 +13,8 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -21,6 +24,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class BookingActivity extends AppCompatActivity {
 
@@ -39,6 +43,7 @@ public class BookingActivity extends AppCompatActivity {
     private SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.getDefault());
 
     private static final int VENUE_SEARCH_REQUEST = 1002;
+    private static final String TAG = "BookingActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +76,7 @@ public class BookingActivity extends AppCompatActivity {
 
         // Setup listeners
         btnSearchVenue.setOnClickListener(v -> {
-            Intent intent = new Intent(BookingActivity.this, VenueSearchActivity.class);
+            Intent intent = new Intent(BookingActivity.this, MapActivity.class);
             startActivityForResult(intent, VENUE_SEARCH_REQUEST);
         });
 
@@ -226,6 +231,10 @@ public class BookingActivity extends AppCompatActivity {
                         Toast.makeText(BookingActivity.this,
                                 "Booking Confirmed! " + finalVenueName + " - " + finalPax + " people",
                                 Toast.LENGTH_LONG).show();
+
+                        // Schedule reminder for this booking
+                        scheduleReminderForBooking(booking);
+
                         finish();
                     } else {
                         String error = task.getException() != null ?
@@ -235,5 +244,47 @@ public class BookingActivity extends AppCompatActivity {
                                 Toast.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    /**
+     * Schedule a reminder for the booking using WorkManager
+     * This will trigger a notification/reminder before the booking time
+     */
+    private void scheduleReminderForBooking(Booking booking) {
+        try {
+            // Parse the booking date and time to calculate when to send reminder
+            // For this implementation, we'll schedule reminder 1 hour before the booking
+            // You can adjust the time as needed (30 mins, 2 hours, etc.)
+
+            long bookingTimestamp = booking.getTimestamp();
+
+            // Schedule reminder 1 hour before booking (60 minutes = 1 hour)
+            long reminderTime = bookingTimestamp - TimeUnit.HOURS.toMillis(1);
+
+            // If reminder time is in the past, schedule it for 5 minutes from now
+            if (reminderTime < System.currentTimeMillis()) {
+                reminderTime = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(5);
+                Log.d(TAG, "Booking is soon, scheduling reminder in 5 minutes");
+            }
+
+            long delay = reminderTime - System.currentTimeMillis();
+
+            // Create a OneTimeWorkRequest for the reminder
+            OneTimeWorkRequest reminderWork = new OneTimeWorkRequest.Builder(ReminderService.class)
+                    .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                    .addTag("booking_reminder_" + booking.getBookingId())
+                    .build();
+
+            // Enqueue the work
+            WorkManager.getInstance(this).enqueue(reminderWork);
+
+            Log.d(TAG, "Reminder scheduled for booking: " + booking.getBookingId() +
+                    " at " + new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                    .format(reminderTime));
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error scheduling reminder: " + e.getMessage());
+            // Don't fail the booking if reminder scheduling fails
+        }
     }
 }

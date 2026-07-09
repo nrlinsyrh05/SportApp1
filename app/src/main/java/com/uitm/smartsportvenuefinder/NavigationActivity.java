@@ -91,9 +91,33 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
             destinationName = getIntent().getStringExtra("destinationName");
             String encodedPolyline = getIntent().getStringExtra("encodedPolyline");
 
-            // Decode polyline
+            // If destination is null but we have destination name, create a default location
+            if (destination == null && destinationName != null) {
+                // Use default coordinates for Shah Alam
+                destination = new LatLng(3.0738, 101.5183);
+            }
+
+            // If no destination name, use "Destination"
+            if (destinationName == null) {
+                destinationName = "Destination";
+            }
+
+            // Decode polyline if provided
             if (encodedPolyline != null && !encodedPolyline.isEmpty()) {
                 routePoints = PolyUtil.decode(encodedPolyline);
+            }
+
+            // If no route points but we have destination, generate dummy route
+            if (routePoints.isEmpty() && startLocation != null && destination != null) {
+                generateDummyRoute();
+            }
+
+            // If still no route points, create a simple route
+            if (routePoints.isEmpty()) {
+                routePoints.add(new LatLng(3.0738, 101.5183));
+                routePoints.add(new LatLng(3.0838, 101.5283));
+                routePoints.add(new LatLng(3.0938, 101.5383));
+                routePoints.add(new LatLng(3.1038, 101.5483));
             }
 
             // Initialize Text-to-Speech
@@ -133,8 +157,22 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
 
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(this, "Error loading navigation", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Error loading navigation: " + e.getMessage(), Toast.LENGTH_LONG).show();
             finish();
+        }
+    }
+
+    private void generateDummyRoute() {
+        if (startLocation == null || destination == null) return;
+
+        routePoints.clear();
+        double latStep = (destination.latitude - startLocation.latitude) / 10;
+        double lngStep = (destination.longitude - startLocation.longitude) / 10;
+
+        for (int i = 0; i <= 10; i++) {
+            double lat = startLocation.latitude + (latStep * i);
+            double lng = startLocation.longitude + (lngStep * i);
+            routePoints.add(new LatLng(lat, lng));
         }
     }
 
@@ -154,7 +192,7 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
         }
 
         int totalPoints = routePoints.size();
-        int numSteps = Math.min(8, Math.max(4, totalPoints / 3));
+        int numSteps = Math.min(6, Math.max(3, totalPoints / 2));
 
         String[] directions = {
                 "Head southeast", "Continue straight", "Turn left", "Turn right",
@@ -163,8 +201,7 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
 
         String[] roads = {
                 "Persiaran Tun Arshad A", "Jalan Sultan", "Lebuhraya Shah Alam",
-                "Persiaran Sultan", "Jalan Raja", "Jalan Kemajuan",
-                "Persiaran Kemajuan", "Jalan Merdeka"
+                "Persiaran Sultan", "Jalan Raja", "Jalan Kemajuan"
         };
 
         for (int i = 0; i < numSteps; i++) {
@@ -188,7 +225,7 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
 
             String instruction;
             if (i == 0) {
-                instruction = "Head southeast";
+                instruction = "Head towards " + destinationName;
             } else if (i == numSteps - 1) {
                 instruction = "Arrive at " + destinationName;
                 road = destinationName;
@@ -296,7 +333,6 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
         }
     }
 
-    // ============ MAP ============
     @Override
     public void onMapReady(GoogleMap googleMap) {
         this.googleMap = googleMap;
@@ -334,14 +370,11 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
 
                 routePolyline = googleMap.addPolyline(polylineOptions);
 
-                // 🚗 CAR MARKER - Arrow icon for moving
                 if (startLocation != null) {
                     carMarker = googleMap.addMarker(new MarkerOptions()
                             .position(startLocation)
                             .title("Your Location")
-                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
-                            .anchor(0.5f, 0.5f)
-                            .rotation(45));
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
                 }
 
                 LatLngBounds.Builder builder = new LatLngBounds.Builder();
@@ -356,7 +389,6 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
         }
     }
 
-    // ============ NAVIGATION ============
     private void startNavigation() {
         if (stepInstructions == null || stepInstructions.isEmpty()) {
             Toast.makeText(this, "No navigation steps available", Toast.LENGTH_SHORT).show();
@@ -372,7 +404,6 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
 
         speak("Starting navigation to " + destinationName);
-
         navigationHandler.postDelayed(() -> showStep(currentStepIndex), 1500);
     }
 
@@ -405,7 +436,6 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
             }
         }
 
-        // Speak instruction
         String speakText = instruction + " on " + road + ", " + distance;
         speak(speakText);
 
@@ -415,7 +445,6 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
             rvSteps.smoothScrollToPosition(index);
         }
 
-        // Animate car to step position
         if (routePoints != null && !routePoints.isEmpty() && index < stepPointIndices.size()) {
             int targetIndex = stepPointIndices.get(index);
             if (targetIndex < routePoints.size()) {
@@ -423,7 +452,6 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
             }
         }
 
-        // Auto-advance with realistic timing
         int delay = 3000;
         if (index < stepDurations.size()) {
             delay = Math.min(stepDurations.get(index) * 1000, 15000);
@@ -458,7 +486,6 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
 
                 carMarker.setPosition(new LatLng(lat, lng));
 
-                // Calculate rotation angle
                 double angle = Math.toDegrees(Math.atan2(
                         end.longitude - start.longitude,
                         end.latitude - start.latitude
@@ -473,7 +500,6 @@ public class NavigationActivity extends AppCompatActivity implements OnMapReadyC
         currentPointIndex = endIndex;
     }
 
-    // ============ TEXT-TO-SPEECH ============
     @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
