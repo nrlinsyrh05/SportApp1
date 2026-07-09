@@ -4,6 +4,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -13,7 +14,8 @@
         android:label="Smart Sport Venue Finder"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SmartSportVenueFinder">
+        android:theme="@style/Theme.SmartSportVenueFinder"
+        android:requestLegacyExternalStorage="true">
 
         <!-- Google Maps API Key -->
         <meta-data
@@ -25,7 +27,10 @@
             android:name="com.google.android.libraries.places.PLACES_API_KEY"
             android:value="AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI" />
 
-        <!-- Splash Screen (Launcher Activity) -->
+
+        <!-- ============ ACTIVITIES ============ -->
+
+        <!-- Splash Screen (Launcher) -->
         <activity
             android:name=".SplashActivity"
             android:exported="true"
@@ -36,7 +41,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Other Activities -->
+        <!-- Main Activities -->
         <activity
             android:name=".LoginActivity"
             android:exported="false" />
@@ -53,7 +58,13 @@
             android:name=".BookingHistoryActivity"
             android:exported="false" />
         <activity
+            android:name=".EditBookingActivity"
+            android:exported="false" />
+        <activity
             android:name=".MapActivity"
+            android:exported="false" />
+        <activity
+            android:name=".NavigationActivity"
             android:exported="false" />
         <activity
             android:name=".ProfileActivity"
@@ -62,22 +73,10 @@
             android:name=".VenueSearchActivity"
             android:exported="false" />
         <activity
-            android:name=".VenueDetailActivity"
-            android:exported="false" />
-        <activity
             android:name=".ContactAdminActivity"
             android:exported="false" />
-        <activity
-            android:name=".EditBookingActivity"
-            android:exported="false" />
 
-        <!-- ========================================== -->
-        <!-- FIXED: ReminderService as SERVICE (not activity) -->
-        <!-- ========================================== -->
-        <service
-            android:name=".ReminderService"
-            android:exported="false"
-            android:permission="android.permission.BIND_JOB_SERVICE" />
+        <!-- ============ SERVICES ============ -->
 
         <!-- FCM Service for Push Notifications -->
         <service
@@ -87,6 +86,12 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <!-- Reminder Service -->
+        <service
+            android:name=".ReminderService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
     </application>
 
