@@ -30,8 +30,6 @@ public class StepAdapter extends RecyclerView.Adapter<StepAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         String instruction = instructions.get(position);
-
-        // Clean up instruction for display
         if (instruction.length() > 50) {
             instruction = instruction.substring(0, 47) + "...";
         }
@@ -41,7 +39,6 @@ public class StepAdapter extends RecyclerView.Adapter<StepAdapter.ViewHolder> {
             holder.tvDistance.setText(distances.get(position));
         }
 
-        // Highlight current step
         if (position == currentStep) {
             holder.itemView.setBackgroundColor(holder.itemView.getContext()
                     .getResources().getColor(android.R.color.holo_blue_light));
