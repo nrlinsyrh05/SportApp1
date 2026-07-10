@@ -13,9 +13,7 @@ import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
-import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -25,8 +23,6 @@ import com.google.firebase.database.ValueEventListener;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class ReminderService extends Worker {
 
@@ -44,18 +40,14 @@ public class ReminderService extends Worker {
         try {
             Log.d(TAG, "ReminderService doWork started");
 
-            // Initialize Firebase if needed
-            FirebaseApp.initializeApp(getApplicationContext());
-
             // Check if user is logged in
-            FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-            if (currentUser == null) {
+            if (FirebaseAuth.getInstance().getCurrentUser() == null) {
                 Log.d(TAG, "User not logged in, skipping reminder check");
                 return Result.success();
             }
 
             // Check for upcoming bookings
-            checkAllBookingsForReminders(currentUser.getUid());
+            checkAllBookingsForReminders();
 
             return Result.success();
         } catch (Exception e) {
@@ -64,49 +56,51 @@ public class ReminderService extends Worker {
         }
     }
 
-    private void checkAllBookingsForReminders(String userId) {
-        try {
-            DatabaseReference bookingsRef = FirebaseDatabase.getInstance().getReference("bookings");
+    private void checkAllBookingsForReminders() {
+        String userId = FirebaseAuth.getInstance().getCurrentUser() != null ?
+                FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
 
-            bookingsRef.orderByChild("userId").equalTo(userId)
-                    .addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                            for (DataSnapshot data : snapshot.getChildren()) {
-                                try {
-                                    Booking booking = data.getValue(Booking.class);
-                                    if (booking != null) {
-                                        // Check if reminder should be sent
-                                        if (shouldSendReminder(booking)) {
-                                            sendReminderNotification(booking);
-                                            // Mark reminder as sent
-                                            data.getRef().child("reminderSent").setValue(true);
-                                            Log.d(TAG, "Reminder sent for booking: " + booking.getVenueName());
-                                        }
+        if (userId == null) return;
+
+        DatabaseReference bookingsRef = FirebaseDatabase.getInstance().getReference("bookings");
+        bookingsRef.orderByChild("userId").equalTo(userId)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        for (DataSnapshot data : snapshot.getChildren()) {
+                            try {
+                                Booking booking = data.getValue(Booking.class);
+                                if (booking != null) {
+                                    // Check if reminder should be sent
+                                    // Handle case where reminderSent might not exist
+                                    boolean reminderSent = false;
+                                    if (data.hasChild("reminderSent")) {
+                                        Boolean sent = data.child("reminderSent").getValue(Boolean.class);
+                                        reminderSent = sent != null && sent;
                                     }
-                                } catch (Exception e) {
-                                    Log.e(TAG, "Error processing booking: " + e.getMessage());
+
+                                    if (!reminderSent && shouldSendReminder(booking)) {
+                                        sendReminderNotification(booking);
+                                        // Mark reminder as sent
+                                        data.getRef().child("reminderSent").setValue(true);
+                                        Log.d(TAG, "Reminder sent for booking: " + booking.getVenueName());
+                                    }
                                 }
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error processing booking: " + e.getMessage());
                             }
                         }
+                    }
 
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                            Log.e(TAG, "Database error: " + error.getMessage());
-                        }
-                    });
-        } catch (Exception e) {
-            Log.e(TAG, "Error checking bookings: " + e.getMessage());
-        }
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e(TAG, "Database error: " + error.getMessage());
+                    }
+                });
     }
 
     private boolean shouldSendReminder(Booking booking) {
         try {
-            // Check if reminder already sent
-            if (booking.isReminderSent()) {
-                return false;
-            }
-
             // Check if booking is still pending
             if (!"Pending".equals(booking.getStatus())) {
                 return false;
@@ -121,8 +115,7 @@ public class ReminderService extends Worker {
 
             long timeDiff = bookingDateTime.getTime() - System.currentTimeMillis();
 
-            // Send reminder if within 1 hour before booking (3600000 ms)
-            // and not already passed
+            // Send reminder if within 1 hour before booking
             return timeDiff > 0 && timeDiff <= 3600000;
 
         } catch (Exception e) {
@@ -135,7 +128,6 @@ public class ReminderService extends Worker {
         try {
             Context context = getApplicationContext();
 
-            // Create notification channel for Android O and above
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 NotificationChannel channel = new NotificationChannel(
                         CHANNEL_ID,
@@ -150,7 +142,6 @@ public class ReminderService extends Worker {
                 manager.createNotificationChannel(channel);
             }
 
-            // Create intent to open BookingHistory when notification is tapped
             Intent intent = new Intent(context, BookingHistoryActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             PendingIntent pendingIntent = PendingIntent.getActivity(
@@ -163,7 +154,7 @@ public class ReminderService extends Worker {
             Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 
             String title = "Upcoming Booking Reminder";
-            String message = "Booking in 1 Hour at " + booking.getVenueName();
+            String message = "Don't forget your booking at " + booking.getVenueName();
 
             NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.ic_dialog_info)
@@ -173,7 +164,7 @@ public class ReminderService extends Worker {
                             .bigText("Venue: " + booking.getVenueName() +
                                     "\nDate: " + booking.getBookingDate() +
                                     "\nTime: " + booking.getBookingTime() +
-                                    "\n\nYour booking is in 1 hour. Tap to view details"))
+                                    "\n\nYour booking is in 1 hour! Tap to view details. "))
                     .setAutoCancel(true)
                     .setSound(defaultSoundUri)
                     .setVibrate(new long[]{1000, 1000, 1000, 1000})
