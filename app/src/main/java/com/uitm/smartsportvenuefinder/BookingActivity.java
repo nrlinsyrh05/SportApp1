@@ -229,7 +229,7 @@ public class BookingActivity extends AppCompatActivity {
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         Toast.makeText(BookingActivity.this,
-                                "Booking Confirmed! " + finalVenueName + " - " + finalPax + " people",
+                                "Booking Confirmed! We'll remind you on your booking!",
                                 Toast.LENGTH_LONG).show();
 
                         // Schedule reminder for this booking
