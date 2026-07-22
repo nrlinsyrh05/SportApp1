@@ -20,12 +20,12 @@
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI" />
+            android:value= <!--include API Key--> />
 
         <!-- Google Places API Key -->
         <meta-data
             android:name="com.google.android.libraries.places.PLACES_API_KEY"
-            android:value="AIzaSyDr64tr-Y3YopYDi7PmbUou96Q0o3wSYlI" />
+            android:value= <!--include API Key--> />
 
         <!-- ============ ACTIVITIES ============ -->
 
